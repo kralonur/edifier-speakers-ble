@@ -7,6 +7,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import EdifierConfigEntry
 from .entity import EdifierEntity
 
+# One speaker, one BLE link: Home Assistant must not start two entity writes at once.
+PARALLEL_UPDATES = 1
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: EdifierConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     fields = {"prompt_tone": "Bluetooth connection prompt tone"}

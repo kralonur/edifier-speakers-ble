@@ -28,7 +28,7 @@ rules:
     comment: tests/test_config_flow.py covers discovery, confirmation, the manual add list and the manifest matchers.
   dependency-transparency:
     status: done
-    comment: No requirements of its own; bleak and bleak-retry-connector are used through Home Assistant's own bluetooth integration.
+    comment: No requirements of its own. bleak and bleak-retry-connector come pinned from Home Assistant's bluetooth integration (4.7.0), which bluetooth_adapters depends on.
   docs-actions:
     status: exempt
     comment: The integration provides no service actions.
@@ -81,8 +81,8 @@ rules:
     status: done
     comment: The coordinator logs the first failure and the recovery only.
   parallel-updates:
-    status: exempt
-    comment: One speaker per config entry, and every operation is serialized by the device session lock.
+    status: done
+    comment: 0 on the read-only platforms (the coordinator centralises reads) and 1 on every platform with actions, because the speaker accepts one BLE operation at a time.
   reauthentication-flow:
     status: exempt
     comment: Bluetooth pairing is out of scope; there are no credentials to reauthenticate.
@@ -124,7 +124,7 @@ rules:
     status: done
   entity-disabled-by-default:
     status: todo
-    comment: Not evaluated; entities that a previous version registered as integration-disabled are re-enabled instead of shipping noisy entities disabled.
+    comment: Nothing is disabled by default. The deliberately noisy entities (Online, Bluetooth control link) are the ones the integration exists to expose, and the rest change only when the user or the speaker changes a setting; disabling any of them would hide them until a user enables them.
   entity-translations:
     status: todo
     comment: Entity names are plain strings, so they are not translatable. Adding translation keys would rename all 61 existing entities, which changes entity IDs.
@@ -134,7 +134,8 @@ rules:
     status: todo
     comment: Depends on entity translations; icons.json is keyed by translation key.
   reconfiguration-flow:
-    status: todo
+    status: exempt
+    comment: The rule exempts integrations without settings in their configuration flow, which is this one; the Bluetooth address is the device identity and there is nothing else to configure. No core BLE integration implements one either (switchbot, led_ble, gardena_bluetooth, airthings_ble, yalexs_ble, thermopro, xiaomi_ble).
   repair-issues:
     status: todo
     comment: Failures are logged and surfaced through the Online and Bluetooth control link sensors instead of repair issues.

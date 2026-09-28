@@ -8,6 +8,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import EdifierConfigEntry
 from .entity import EdifierEntity
 
+# The coordinator centralises updates, so reads never run in parallel.
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: EdifierConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     async_add_entities([EdifierOnlineSensor(entry), EdifierLinkSensor(entry)])

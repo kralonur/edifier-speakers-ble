@@ -10,6 +10,9 @@ from .const import DOMAIN
 from .entity import EdifierEntity
 from .protocol.device import EQ_FREQUENCIES
 
+# One speaker, one BLE link: Home Assistant must not start two entity writes at once.
+PARALLEL_UPDATES = 1
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: EdifierConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     model = entry.runtime_data.device.model

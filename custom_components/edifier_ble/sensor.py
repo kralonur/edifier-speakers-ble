@@ -7,6 +7,10 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import EdifierConfigEntry
 from .entity import EdifierEntity
+
+# The coordinator centralises updates, so reads never run in parallel.
+PARALLEL_UPDATES = 0
+
 _AUDIO_STATUS = {0: "Standard/unknown", 4: "Wireless Hi-Res UI status", 5: "Wired Hi-Res UI status", 9: "192 kHz UI status"}
 
 
