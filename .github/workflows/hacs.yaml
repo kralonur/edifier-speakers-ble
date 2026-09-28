@@ -16,6 +16,3 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # Brand assets are not added yet; see the README and quality_scale.yaml.
-          # Remove this line once custom_components/edifier_ble/brand exists.
-          ignore: brands

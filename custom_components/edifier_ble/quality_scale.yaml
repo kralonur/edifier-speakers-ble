@@ -16,8 +16,12 @@ rules:
     status: done
     comment: One state read every two minutes; commands and speaker notifications refresh immediately.
   brands:
-    status: todo
-    comment: Home Assistant serves brand images from custom_components/edifier_ble/brand/ (components/brands reads that directory for custom integrations), so this is achievable; the assets are not created yet.
+    status: done
+    comment: >-
+      custom_components/edifier_ble/brand/ carries the eight images Home Assistant serves for a
+      custom integration (icon, logo, dark variants and the @2x sizes). They are the Edifier
+      wordmark from Home Assistant's brands repository (core_integrations/edifier_infrared),
+      shipped unmodified; the README credits it and notes that the integration is unofficial.
   common-modules:
     status: done
     comment: Protocol framing, device session handling and Bluetooth plumbing live in protocol/ and bluetooth_device.py.

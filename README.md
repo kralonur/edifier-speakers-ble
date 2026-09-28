@@ -84,6 +84,10 @@ PYTHONPATH=$PWD python3 -m coverage run --branch --source=custom_components/edif
 python3 -m coverage report
 ```
 
+## Branding
+
+The integration icon and logo are the Edifier wordmark as published in Home Assistant's [brands repository](https://github.com/home-assistant/brands/tree/master/core_integrations/edifier_infrared), where the same artwork is used for Home Assistant's own Edifier integration, with the dark-theme variants included. The files are shipped unmodified. Edifier and the Edifier logo are trademarks of Edifier; this integration is unofficial and is not affiliated with or endorsed by Edifier.
+
 ## Scope and safety
 
 The current references cover BLE controls, not firmware updates or the Bluetooth audio transport. Track metadata may need to come from the audio source rather than the speaker. Firmware revisions may behave differently.
