@@ -48,7 +48,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: EdifierConfigEntry) -> b
     """
     if not bluetooth.async_scanner_count(hass, connectable=True):
         raise ConfigEntryNotReady(
-            "No connectable Bluetooth adapter or proxy can reach the Edifier speaker"
+            translation_domain=DOMAIN,
+            translation_key="no_connectable_adapter",
         )
     address = entry.data[CONF_ADDRESS]
     await async_clear_stale_connections(address)

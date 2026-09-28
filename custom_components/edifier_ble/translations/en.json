@@ -24,5 +24,25 @@
       "not_supported": "This is not a supported Edifier M60 or M90",
       "no_devices_found": "No Edifier speaker is advertising right now. Power it on, wait a moment, then try again"
     }
+  },
+  "exceptions": {
+    "no_connectable_adapter": {
+      "message": "No connectable Bluetooth adapter or proxy can reach the Edifier speaker."
+    },
+    "link_command_failed": {
+      "message": "Unable to {action} the Edifier Bluetooth link: {error}"
+    },
+    "disruptive_command_failed": {
+      "message": "Unable to {action} it; the speaker may still have acted: {error}"
+    },
+    "playback_command_failed": {
+      "message": "Unable to send {action}: {error}"
+    },
+    "change_failed": {
+      "message": "Unable to change {field}: {error}"
+    },
+    "change_not_applied": {
+      "message": "The speaker did not report the requested change: {error}"
+    }
   }
 }

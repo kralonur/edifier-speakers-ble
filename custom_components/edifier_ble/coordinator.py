@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .const import DOMAIN
 from .protocol.device import EdifierDevice, SpeakerState
 from .protocol.frames import CommandNotApplied
 
@@ -73,7 +74,11 @@ class EdifierCoordinator(DataUpdateCoordinator[SpeakerState]):
             else:
                 raise ValueError("Unsupported link action")
         except Exception as exc:
-            raise HomeAssistantError(f"Unable to {action} the Edifier Bluetooth link: {exc}") from exc
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="link_command_failed",
+                translation_placeholders={"action": action, "error": str(exc)},
+            ) from exc
         # Pinning the link is most useful when polling is disabled, so read once.
         await self.async_refresh()
 
@@ -87,7 +92,11 @@ class EdifierCoordinator(DataUpdateCoordinator[SpeakerState]):
             else:
                 raise ValueError("Unsupported speaker action")
         except Exception as exc:
-            raise HomeAssistantError(f"Unable to send {action}; it may still have taken effect: {exc}") from exc
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="disruptive_command_failed",
+                translation_placeholders={"action": action, "error": str(exc)},
+            ) from exc
         await self.async_request_refresh()
 
     async def async_playback_command(self, action: str) -> None:
@@ -95,7 +104,11 @@ class EdifierCoordinator(DataUpdateCoordinator[SpeakerState]):
         try:
             await self.device.playback_command(action)
         except Exception as exc:
-            raise HomeAssistantError(f"Unable to send {action} command: {exc}") from exc
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="playback_command_failed",
+                translation_placeholders={"action": action, "error": str(exc)},
+            ) from exc
 
     async def async_change(self, field: str, value: object) -> None:
         try:
@@ -103,9 +116,17 @@ class EdifierCoordinator(DataUpdateCoordinator[SpeakerState]):
         except CommandNotApplied as exc:
             # A mismatch is still an authoritative observation: refresh the state.
             await self.async_request_refresh()
-            raise HomeAssistantError(str(exc)) from exc
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="change_not_applied",
+                translation_placeholders={"error": str(exc)},
+            ) from exc
         except Exception as exc:
-            raise HomeAssistantError(f"Unable to change {field}: {exc}") from exc
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="change_failed",
+                translation_placeholders={"field": field, "error": str(exc)},
+            ) from exc
         if not self.last_update_success:
             await self.async_request_refresh()
         else:

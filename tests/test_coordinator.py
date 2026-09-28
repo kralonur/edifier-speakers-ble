@@ -97,8 +97,10 @@ class CoordinatorCommandTests(unittest.IsolatedAsyncioTestCase):
         await coordinator.async_link_command("disconnect")
         device.disconnect_now.assert_awaited_once()
         device.connect_now.side_effect = OSError("offline")
-        with self.assertRaises(module.HomeAssistantError):
+        with self.assertRaises(module.HomeAssistantError) as failure:
             await coordinator.async_link_command("connect")
+        self.assertEqual(failure.exception.translation_key, "link_command_failed")
+        self.assertEqual(failure.exception.translation_placeholders["action"], "connect")
         with self.assertRaises(module.HomeAssistantError):
             await coordinator.async_link_command("nonsense")
 
@@ -109,6 +111,10 @@ class CoordinatorCommandTests(unittest.IsolatedAsyncioTestCase):
         device.power_off.assert_awaited_once()
         device.disconnect_audio.assert_awaited_once()
         self.assertEqual(coordinator.async_request_refresh.await_count, 2)
+        device.power_off.side_effect = OSError("offline")
+        with self.assertRaises(module.HomeAssistantError) as failure:
+            await coordinator.async_disruptive_command("power_off")
+        self.assertEqual(failure.exception.translation_key, "disruptive_command_failed")
         with self.assertRaises(module.HomeAssistantError):
             await coordinator.async_disruptive_command("nonsense")
 
@@ -117,8 +123,9 @@ class CoordinatorCommandTests(unittest.IsolatedAsyncioTestCase):
         await coordinator.async_playback_command("play")
         device.playback_command.assert_awaited_once_with("play")
         device.playback_command.side_effect = OSError("offline")
-        with self.assertRaises(module.HomeAssistantError):
+        with self.assertRaises(module.HomeAssistantError) as failure:
             await coordinator.async_playback_command("play")
+        self.assertEqual(failure.exception.translation_key, "playback_command_failed")
 
     async def test_change_publishes_verified_values_and_handles_failures(self):
         module, device, coordinator = self.prepare()
@@ -130,14 +137,17 @@ class CoordinatorCommandTests(unittest.IsolatedAsyncioTestCase):
         coordinator.async_request_refresh.assert_not_awaited()
 
         device.change.side_effect = module.CommandNotApplied("volume: requested 9")
-        with self.assertRaises(module.HomeAssistantError):
+        with self.assertRaises(module.HomeAssistantError) as failure:
             await coordinator.async_change("volume", 9)
+        self.assertEqual(failure.exception.translation_key, "change_not_applied")
         coordinator.async_request_refresh.assert_awaited_once()  # a mismatch is re-read
 
         coordinator.async_request_refresh.reset_mock()
         device.change.side_effect = OSError("offline")
-        with self.assertRaises(module.HomeAssistantError):
+        with self.assertRaises(module.HomeAssistantError) as failure:
             await coordinator.async_change("volume", 9)
+        self.assertEqual(failure.exception.translation_key, "change_failed")
+        self.assertEqual(failure.exception.translation_placeholders["field"], "volume")
         coordinator.async_request_refresh.assert_not_awaited()
 
     async def test_change_refreshes_instead_of_publishing_stale_data(self):

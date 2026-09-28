@@ -64,8 +64,9 @@ class SetupEntryTests(unittest.IsolatedAsyncioTestCase):
     async def test_setup_refuses_to_load_without_a_connectable_scanner(self):
         module = _module(self)
         with patch.object(module.bluetooth, "async_scanner_count", return_value=0):
-            with self.assertRaises(module.ConfigEntryNotReady):
+            with self.assertRaises(module.ConfigEntryNotReady) as failure:
                 await module.async_setup_entry(SimpleNamespace(), _entry(module))
+        self.assertEqual(failure.exception.translation_key, "no_connectable_adapter")
 
     async def test_setup_closes_the_device_when_platforms_fail(self):
         module = _module(self)
