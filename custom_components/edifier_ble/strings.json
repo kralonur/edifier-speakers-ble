@@ -5,6 +5,9 @@
         "title": "Choose an Edifier speaker",
         "data": {
           "address": "Discovered speaker"
+        },
+        "data_description": {
+          "address": "The speakers this Home Assistant instance can see advertising right now. The model is confirmed over Bluetooth after you confirm, so an entry is only created for an M60 or M90."
         }
       },
       "bluetooth_confirm": {

@@ -16,13 +16,14 @@ rules:
     status: done
     comment: One state read every two minutes; commands and speaker notifications refresh immediately.
   brands:
-    status: exempt
-    comment: Brand assets are shipped in the home-assistant/brands repository, which only accepts Home Assistant Core integrations.
+    status: todo
+    comment: Home Assistant serves brand images from custom_components/edifier_ble/brand/ (components/brands reads that directory for custom integrations), so this is achievable; the assets are not created yet.
   common-modules:
     status: done
     comment: Protocol framing, device session handling and Bluetooth plumbing live in protocol/ and bluetooth_device.py.
   config-flow:
     status: done
+    comment: The single field carries a data_description, and the address plus the GATT-confirmed model live in ConfigEntry.data with no options used.
   config-flow-test-coverage:
     status: done
     comment: tests/test_config_flow.py covers discovery, confirmation, the manual add list and the manifest matchers.
