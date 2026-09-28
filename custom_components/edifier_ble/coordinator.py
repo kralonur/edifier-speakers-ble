@@ -1,0 +1,112 @@
+"""Shared, authoritative speaker state."""
+
+import asyncio
+from dataclasses import replace
+from datetime import timedelta
+import logging
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+
+from .protocol.device import EdifierDevice, SpeakerState
+from .protocol.frames import CommandNotApplied
+
+_LOGGER = logging.getLogger(__name__)
+
+
+class EdifierCoordinator(DataUpdateCoordinator[SpeakerState]):
+    """One periodic state read and one serialized client per speaker."""
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, device: EdifierDevice) -> None:
+        super().__init__(hass, _LOGGER, config_entry=entry, name="Edifier BLE", update_interval=timedelta(minutes=2))
+        self.device = device
+        self._event_task: asyncio.Task[None] | None = None
+        device.event_callback = self._handle_device_event
+        device.link_callback = self.async_update_listeners
+
+    def _handle_device_event(self) -> None:
+        """Re-read state right away instead of waiting for the next poll.
+
+        Called from the BLE notification callback, so it only schedules work.
+        """
+        if self._event_task is not None and not self._event_task.done():
+            return
+        self._event_task = self.hass.async_create_task(self._async_refresh_from_event())
+
+    @callback
+    def _async_bluetooth_callback(self, service_info: object, _change: object) -> None:
+        """Cache the freshest BLEDevice object from an advertisement.
+
+        Deliberately never triggers a read: an unreachable speaker that keeps
+        advertising would otherwise cause a connect attempt per advertisement.
+        """
+        self.device.set_ble_device(getattr(service_info, "device", None))
+
+    @callback
+    def _async_unavailable(self, _service_info: object) -> None:
+        """Home Assistant stopped seeing the speaker, so report it offline."""
+        if self.last_update_success:
+            self.async_set_update_error(UpdateFailed("Speaker is no longer advertising"))
+
+    async def _async_refresh_from_event(self) -> None:
+        try:
+            await self.async_refresh()
+        except Exception as exc:  # a failed refresh must not kill the callback
+            _LOGGER.debug("Refresh after a speaker-initiated change failed: %s", exc)
+
+    async def _async_update_data(self) -> SpeakerState:
+        try:
+            return await self.device.read_state()
+        except Exception as exc:
+            raise UpdateFailed(f"Unable to read Edifier speaker: {exc}") from exc
+
+    async def async_link_command(self, action: str) -> None:
+        """Force the BLE control link open (pinned, with a fresh read) or release it now."""
+        try:
+            if action == "connect":
+                await self.device.connect_now()
+            elif action == "disconnect":
+                await self.device.disconnect_now()
+                return
+            else:
+                raise ValueError("Unsupported link action")
+        except Exception as exc:
+            raise HomeAssistantError(f"Unable to {action} the Edifier Bluetooth link: {exc}") from exc
+        # Pinning the link is most useful when polling is disabled, so read once.
+        await self.async_refresh()
+
+    async def async_disruptive_command(self, action: str) -> None:
+        """Send an explicit disconnect/shutdown without assuming an ACK."""
+        try:
+            if action == "power_off":
+                await self.device.power_off()
+            elif action == "disconnect_audio":
+                await self.device.disconnect_audio()
+            else:
+                raise ValueError("Unsupported speaker action")
+        except Exception as exc:
+            raise HomeAssistantError(f"Unable to send {action}; it may still have taken effect: {exc}") from exc
+        await self.async_request_refresh()
+
+    async def async_playback_command(self, action: str) -> None:
+        """Report BLE write failures, without claiming the source acted on them."""
+        try:
+            await self.device.playback_command(action)
+        except Exception as exc:
+            raise HomeAssistantError(f"Unable to send {action} command: {exc}") from exc
+
+    async def async_change(self, field: str, value: object) -> None:
+        try:
+            changes = await self.device.change(field, value)
+        except CommandNotApplied as exc:
+            # A mismatch is still an authoritative observation: refresh the state.
+            await self.async_request_refresh()
+            raise HomeAssistantError(str(exc)) from exc
+        except Exception as exc:
+            raise HomeAssistantError(f"Unable to change {field}: {exc}") from exc
+        if not self.last_update_success:
+            await self.async_request_refresh()
+        else:
+            self.async_set_updated_data(replace(self.data, **changes))

@@ -1,0 +1,25 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Choose an Edifier speaker",
+        "data": {
+          "address": "Discovered speaker"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Add Edifier BLE speaker?",
+        "description": "Connect to identify and add this Edifier speaker?"
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the speaker right now. Try again when it is nearby and powered on."
+    },
+    "abort": {
+      "already_configured": "This speaker is already configured",
+      "cannot_connect": "Cannot connect to the speaker right now",
+      "not_supported": "This is not a supported Edifier M60 or M90",
+      "no_devices_found": "No Edifier speaker is advertising right now. Power it on, wait a moment, then try again"
+    }
+  }
+}

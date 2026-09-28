@@ -1,0 +1,18 @@
+{
+  "domain": "edifier_ble",
+  "name": "Edifier BLE",
+  "version": "0.1.0",
+  "codeowners": ["@kralonur"],
+  "documentation": "https://github.com/kralonur/edifier-speakers-ble",
+  "issue_tracker": "https://github.com/kralonur/edifier-speakers-ble/issues",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "config_flow": true,
+  "dependencies": ["bluetooth_adapters"],
+  "bluetooth": [
+    {"local_name": "EDIFIER *", "connectable": true},
+    {"local_name": "Edifier *", "connectable": true},
+    {"service_uuid": "0000f600-0000-1000-8000-00805f9b34fb", "connectable": true},
+    {"service_uuid": "00004503-0000-1000-8000-00805f9b34fb", "connectable": true}
+  ]
+}

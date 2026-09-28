@@ -1,12 +1,12 @@
 # Edifier M60 BLE protocol reference
 
-**Scope:** M60 BLE controls, tested on a real unit unless explicitly noted otherwise. Names and option labels come from EDIFIER ConneX 1.0.30; untested commands or meanings are marked where they appear. This controls the speaker, not the Bluetooth audio stream. An ACK alone does not prove a setting changed.
+**Scope:** M60 BLE controls observed on a real unit (firmware 2.4.1) using a desktop Linux PC. Protocol reads were verified on that PC; M60 state reads through Home Assistant have **not** been verified. Names and option labels come from EDIFIER ConneX 1.0.30; untested commands or meanings are marked where they appear. This controls the speaker, not the Bluetooth audio stream. An ACK alone does not prove a setting changed.
 
 ## Device profile
 
 | Property | M60 |
 |---|---|
-| BLE advertisement name | `EDIFIER BLE` (addresses vary by unit; omitted here) |
+| BLE advertisement name | `EDIFIER BLE`; sometimes no name is advertised while idle (addresses vary by unit; omitted here) |
 | Device name (`0xC9`) | `EDIFIER M60` on the tested unit; user-changeable |
 | ConneX search UUID (app profile) | `0000f600-0000-1000-8000-00805f9b34fb` |
 | GATT service | `4809f601-1a48-11e9-ab14-d663bd873d93` |
@@ -14,6 +14,10 @@
 | Write characteristic | `48090002-1a48-11e9-ab14-d663bd873d93` |
 
 M60 and M90 share characteristic UUIDs, **not** service UUIDs or every payload mapping. `0xC8` returns a unit-specific Classic audio address; do not use another owner's value.
+
+## Observed BLE availability
+
+On the tested PC, BLE advertisements were intermittent with no music (including a 90-second scan with none), but appeared while Bluetooth audio streamed. Four idle `bluetoothctl connect` attempts succeeded; GATT exposed **0 services** then. With music streaming from a phone, the PC connected over BLE and read the control service and full state. An idle PC connection took around 30 seconds in those tests. USB-input observations also found periods with no BLE advertisements or Classic inquiry responses. These observations are from one unit and PC; other firmware and setups have not been tested.
 
 ## Frame format
 

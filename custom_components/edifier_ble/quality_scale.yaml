@@ -1,0 +1,154 @@
+# Implementation status against the Home Assistant integration quality scale.
+#
+# This is a custom integration, which Home Assistant does not grade, so this file
+# records an honest self-assessment rather than a claimed tier: `done` for rules we
+# meet, `exempt` where a rule cannot apply, and `todo` where we knowingly do not
+# meet it. Do not read a tier into it.
+#
+# Reference: https://developers.home-assistant.io/docs/core/integration-quality-scale/
+
+rules:
+  # --- Bronze -----------------------------------------------------------------
+  action-setup:
+    status: exempt
+    comment: The integration provides no service actions.
+  appropriate-polling:
+    status: done
+    comment: One state read every two minutes; commands and speaker notifications refresh immediately.
+  brands:
+    status: exempt
+    comment: Brand assets are shipped in the home-assistant/brands repository, which only accepts Home Assistant Core integrations.
+  common-modules:
+    status: done
+    comment: Protocol framing, device session handling and Bluetooth plumbing live in protocol/ and bluetooth_device.py.
+  config-flow:
+    status: done
+  config-flow-test-coverage:
+    status: done
+    comment: tests/test_config_flow.py covers discovery, confirmation, the manual add list and the manifest matchers.
+  dependency-transparency:
+    status: done
+    comment: No requirements of its own; bleak and bleak-retry-connector are used through Home Assistant's own bluetooth integration.
+  docs-actions:
+    status: exempt
+    comment: The integration provides no service actions.
+  docs-conditions:
+    status: exempt
+    comment: The integration provides no conditions.
+  docs-high-level-description:
+    status: done
+  docs-installation-instructions:
+    status: done
+  docs-removal-instructions:
+    status: done
+  docs-triggers:
+    status: exempt
+    comment: The integration provides no triggers.
+  entity-event-setup:
+    status: done
+    comment: The speaker's unsolicited notifications are subscribed once per config entry by the coordinator, not per entity.
+  entity-unique-id:
+    status: done
+  has-entity-name:
+    status: done
+  runtime-data:
+    status: done
+  test-before-configure:
+    status: done
+    comment: The config flow reads the speaker over GATT and only then creates the entry.
+  test-before-setup:
+    status: todo
+    comment: Deliberate deviation. These speakers sleep, and the requirement is that entities always exist, so setup does not raise ConfigEntryNotReady for an unreachable speaker; it records the failure and the Online sensor reports it.
+  unique-config-entry:
+    status: done
+
+  # --- Silver -----------------------------------------------------------------
+  action-exceptions:
+    status: exempt
+    comment: The integration provides no service actions.
+  config-entry-unloading:
+    status: done
+  docs-configuration-parameters:
+    status: done
+  docs-installation-parameters:
+    status: done
+  entity-unavailable:
+    status: exempt
+    comment: Speakers sleep, and a command or Force connect wakes them, so entities keep their last known value and a dedicated Online sensor reports reachability.
+  integration-owner:
+    status: done
+  log-when-unavailable:
+    status: done
+    comment: The coordinator logs the first failure and the recovery only.
+  parallel-updates:
+    status: exempt
+    comment: One speaker per config entry, and every operation is serialized by the device session lock.
+  reauthentication-flow:
+    status: exempt
+    comment: Bluetooth pairing is out of scope; there are no credentials to reauthenticate.
+  test-coverage:
+    status: todo
+    comment: 47 tests cover protocol, entities, coordinator, config flow and diagnostics; total coverage has not been measured against the 95% target.
+
+  # --- Gold -------------------------------------------------------------------
+  devices:
+    status: done
+  diagnostics:
+    status: done
+  discovery:
+    status: done
+    comment: Bluetooth discovery by advertised name and by ConneX service UUID.
+  discovery-update-info:
+    status: exempt
+    comment: The Bluetooth address is the device identity; there is no network information to update from discovery.
+  docs-data-update:
+    status: done
+  docs-examples:
+    status: done
+  docs-known-limitations:
+    status: done
+  docs-supported-devices:
+    status: done
+  docs-supported-functions:
+    status: done
+  docs-troubleshooting:
+    status: done
+  docs-use-cases:
+    status: done
+  dynamic-devices:
+    status: exempt
+    comment: A config entry represents one physically present speaker.
+  entity-category:
+    status: done
+  entity-device-class:
+    status: done
+  entity-disabled-by-default:
+    status: todo
+    comment: Not evaluated; entities that a previous version registered as integration-disabled are re-enabled instead of shipping noisy entities disabled.
+  entity-translations:
+    status: todo
+    comment: Entity names are plain strings, so they are not translatable. Adding translation keys would rename all 61 existing entities, which changes entity IDs.
+  exception-translations:
+    status: todo
+  icon-translations:
+    status: todo
+    comment: Depends on entity translations; icons.json is keyed by translation key.
+  reconfiguration-flow:
+    status: todo
+  repair-issues:
+    status: todo
+    comment: Failures are logged and surfaced through the Online and Bluetooth control link sensors instead of repair issues.
+  stale-devices:
+    status: exempt
+    comment: A speaker's device entry is removed with its config entry.
+
+  # --- Platinum ---------------------------------------------------------------
+  async-dependency:
+    status: done
+    comment: bleak and bleak-retry-connector are asynchronous.
+  inject-websession:
+    status: exempt
+    comment: The integration does not talk HTTP.
+  strict-typing:
+    status: todo
+    comment: Annotated throughout, but not yet verified with a strict mypy run.
