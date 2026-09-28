@@ -1,0 +1,21 @@
+name: HACS
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: HACS repository requirements
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration
+          # Brand assets are not added yet; see the README and quality_scale.yaml.
+          # Remove this line once custom_components/edifier_ble/brand exists.
+          ignore: brands

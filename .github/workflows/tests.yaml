@@ -1,0 +1,51 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Home Assistant ${{ matrix.homeassistant }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The version this integration is developed and verified against.
+          - homeassistant: "2026.9.3"
+            image: "2026.9.3"
+          # The same checks against the current release: an early warning, not a gate.
+          - homeassistant: "latest"
+            image: "stable"
+    continue-on-error: ${{ matrix.homeassistant == 'latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The checks run inside the Home Assistant container for the same reason they
+      # do locally: it already has Home Assistant, Python 3.14 and every runtime
+      # dependency, so mypy resolves Home Assistant's own types and the tests run
+      # against a real installation. A bare `pip install homeassistant` is not
+      # enough - integration requirements are installed by Home Assistant at
+      # runtime, so mypy would only see `Any` for the Bluetooth and entity modules.
+      - name: Tests, strict typing and coverage
+        run: |
+          docker run --rm --network host -v "$PWD:/work" -w /work \
+            --entrypoint bash "ghcr.io/home-assistant/home-assistant:${{ matrix.image }}" -c '
+              set -e
+              python3 -m pip install --quiet --root-user-action=ignore mypy coverage
+
+              echo "== test suite"
+              PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/work python3 -m unittest discover -s tests
+
+              echo "== mypy --strict"
+              PYTHONPATH=/work:/usr/src/homeassistant python3 -m mypy
+
+              echo "== coverage (quality scale requires 95% or more)"
+              PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/work python3 -m coverage run --branch \
+                --source=custom_components/edifier_ble -m unittest discover -s tests
+              python3 -m coverage report --fail-under=95
+            '
