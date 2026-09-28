@@ -1,9 +1,19 @@
 """HA button entity tests; require Home Assistant to be installed."""
 
 import importlib
+import json
+from pathlib import Path
 from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock
+
+COMPONENT = Path(__file__).resolve().parents[1] / "custom_components" / "edifier_ble"
+NAMES = json.loads((COMPONENT / "strings.json").read_text())["entity"]
+
+
+def rendered_name(entity) -> str:
+    """The name Home Assistant renders for an entity, from its translation key."""
+    return NAMES["button"][entity.translation_key]["name"]
 
 
 class PlaybackButtonTests(unittest.IsolatedAsyncioTestCase):
@@ -24,11 +34,12 @@ class PlaybackButtonTests(unittest.IsolatedAsyncioTestCase):
             entry = SimpleNamespace(runtime_data=coordinator, unique_id="test-speaker")
             entities = []
             await module.async_setup_entry(None, entry, entities.extend)
-            self.assertEqual([entity.name for entity in entities[:4]], ["Play", "Pause", "Next track", "Previous track"])
+            self.assertEqual([entity.translation_key for entity in entities[:4]], ["play", "pause", "next", "previous"])
+            self.assertEqual([rendered_name(entity) for entity in entities[:4]], ["Play", "Pause", "Next track", "Previous track"])
             self.assertEqual([entity.unique_id for entity in entities[:4]], [
                 "test-speaker_play", "test-speaker_pause", "test-speaker_next", "test-speaker_previous"
             ])
-            self.assertEqual(entities[4].name, "Power off speaker" if model == "M90" else "Disconnect Bluetooth audio")
+            self.assertEqual(rendered_name(entities[4]), "Power off speaker" if model == "M90" else "Disconnect Bluetooth audio")
             for index, action in enumerate(("play", "pause", "next", "previous")):
                 await entities[index].async_press()
             self.assertEqual(
@@ -37,7 +48,7 @@ class PlaybackButtonTests(unittest.IsolatedAsyncioTestCase):
             )
             await entities[4].async_press()
             coordinator.async_disruptive_command.assert_awaited_with("power_off" if model == "M90" else "disconnect_audio")
-            self.assertEqual([entity.name for entity in entities[5:]], ["Force connect", "Force disconnect"])
+            self.assertEqual([rendered_name(entity) for entity in entities[5:]], ["Force connect", "Force disconnect"])
             self.assertEqual([entity.unique_id for entity in entities[5:]], ["test-speaker_link_connect", "test-speaker_link_disconnect"])
             coordinator.last_update_success = False
             self.assertTrue(entities[5].available, "link buttons must stay pressable while the speaker is unreachable")

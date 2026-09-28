@@ -1,0 +1,48 @@
+{
+  "entity": {
+    "button": {
+      "disconnect_audio": {
+        "default": "mdi:bluetooth-off"
+      },
+      "link_connect": {
+        "default": "mdi:bluetooth-connect"
+      },
+      "link_disconnect": {
+        "default": "mdi:bluetooth-off"
+      },
+      "next": {
+        "default": "mdi:skip-next"
+      },
+      "pause": {
+        "default": "mdi:pause"
+      },
+      "play": {
+        "default": "mdi:play"
+      },
+      "power_off": {
+        "default": "mdi:power"
+      },
+      "previous": {
+        "default": "mdi:skip-previous"
+      }
+    },
+    "number": {
+      "eq_band": {
+        "default": "mdi:equalizer"
+      },
+      "volume": {
+        "default": "mdi:volume-high"
+      }
+    },
+    "select": {
+      "source": {
+        "default": "mdi:audio-input-rca"
+      }
+    },
+    "sensor": {
+      "classic_address": {
+        "default": "mdi:bluetooth"
+      }
+    }
+  }
+}

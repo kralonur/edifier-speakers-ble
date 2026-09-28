@@ -15,7 +15,7 @@ class EdifierEntity(CoordinatorEntity[EdifierCoordinator]):
 
     _attr_has_entity_name = True
 
-    def __init__(self, entry: EdifierConfigEntry, key: str) -> None:
+    def __init__(self, entry: EdifierConfigEntry, key: str, translation_key: str | None = None) -> None:
         super().__init__(entry.runtime_data)
         unique_id = entry.unique_id
         if unique_id is None:
@@ -23,6 +23,10 @@ class EdifierEntity(CoordinatorEntity[EdifierCoordinator]):
             unique_id = entry.entry_id
         self._entry_unique_id = unique_id
         self._attr_unique_id = f"{unique_id}_{key}"
+        # Names, and the icons in icons.json, come from strings.json rather than from
+        # _attr_name. The key matches the unique-id suffix except where one platform
+        # reuses a name across models.
+        self._attr_translation_key = translation_key or key
 
     @property
     def device_info(self) -> DeviceInfo:

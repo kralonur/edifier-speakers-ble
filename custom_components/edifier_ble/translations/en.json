@@ -25,6 +25,109 @@
       "no_devices_found": "No Edifier speaker is advertising right now. Power it on, wait a moment, then try again"
     }
   },
+  "entity": {
+    "binary_sensor": {
+      "link_connected": {
+        "name": "Bluetooth control link"
+      },
+      "online": {
+        "name": "Online"
+      }
+    },
+    "button": {
+      "disconnect_audio": {
+        "name": "Disconnect Bluetooth audio"
+      },
+      "link_connect": {
+        "name": "Force connect"
+      },
+      "link_disconnect": {
+        "name": "Force disconnect"
+      },
+      "next": {
+        "name": "Next track"
+      },
+      "pause": {
+        "name": "Pause"
+      },
+      "play": {
+        "name": "Play"
+      },
+      "power_off": {
+        "name": "Power off speaker"
+      },
+      "previous": {
+        "name": "Previous track"
+      }
+    },
+    "number": {
+      "eq_band": {
+        "name": "Custom EQ {frequency} Hz (app gain)"
+      },
+      "volume": {
+        "name": "Volume"
+      }
+    },
+    "select": {
+      "codec_preference_hd": {
+        "name": "HD codec preference (experimental)"
+      },
+      "codec_preference_ldac": {
+        "name": "LDAC preference"
+      },
+      "eq": {
+        "name": "EQ"
+      },
+      "light_sensitivity": {
+        "name": "Smart light sensitivity"
+      },
+      "light_timeout": {
+        "name": "Smart light timeout"
+      },
+      "source": {
+        "name": "Source"
+      },
+      "sub_out": {
+        "name": "Sub Out"
+      }
+    },
+    "sensor": {
+      "a2dp_status": {
+        "name": "Bluetooth transport status"
+      },
+      "audio_status": {
+        "name": "Audio status"
+      },
+      "classic_address": {
+        "name": "Classic Bluetooth address"
+      },
+      "firmware": {
+        "name": "Firmware"
+      }
+    },
+    "switch": {
+      "multipoint": {
+        "name": "Multipoint"
+      },
+      "power_save": {
+        "name": "Power save"
+      },
+      "prompt_tone": {
+        "name": "Bluetooth connection prompt tone"
+      },
+      "shutdown_timer": {
+        "name": "15-minute shutdown timer"
+      }
+    },
+    "text": {
+      "device_name": {
+        "name": "Speaker firmware name"
+      },
+      "eq_profile_name": {
+        "name": "Custom EQ profile name"
+      }
+    }
+  },
   "exceptions": {
     "no_connectable_adapter": {
       "message": "No connectable Bluetooth adapter or proxy can reach the Edifier speaker."

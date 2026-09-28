@@ -51,21 +51,21 @@ class StatusSensorTests(unittest.TestCase):
                     continue  # the long transport message is M60-specific
                 data = state(volume=5, source="Bluetooth", eq="Music", prompt_tone=True, **overrides)
                 sensor = modules["sensor"].EdifierStatusSensor(
-                    _entry(_coordinator(modules, data, model)), field, field)
+                    _entry(_coordinator(modules, data, model)), field)
                 self.assertEqual(sensor.native_value, expected, f"{model} {field} {overrides}")
 
     def test_sensor_is_unavailable_until_the_first_read(self):
         modules = _modules(self)
         empty = _entry(_coordinator(modules, None))
-        sensor = modules["sensor"].EdifierStatusSensor(empty, "classic_address", "Classic Bluetooth address")
+        sensor = modules["sensor"].EdifierStatusSensor(empty, "classic_address")
         self.assertFalse(sensor.available)
         self.assertIsNone(sensor.native_value)
         # Firmware is the exception: it falls back to the model read when the entry was added.
-        firmware = modules["sensor"].EdifierStatusSensor(empty, "firmware", "Firmware")
+        firmware = modules["sensor"].EdifierStatusSensor(empty, "firmware")
         self.assertEqual(firmware.native_value, "2.5.1")
         data = modules["protocol.device"].SpeakerState(volume=5, source="Bluetooth", eq="Music", prompt_tone=True,
                                                       classic_address="AA:BB:CC:22:33:44")
-        sensor = modules["sensor"].EdifierStatusSensor(_entry(_coordinator(modules, data)), "classic_address", "Address")
+        sensor = modules["sensor"].EdifierStatusSensor(_entry(_coordinator(modules, data)), "classic_address")
         self.assertTrue(sensor.available)
         self.assertEqual(sensor.native_value, "AA:BB:CC:22:33:44")
 
@@ -73,7 +73,7 @@ class StatusSensorTests(unittest.TestCase):
         modules = _modules(self)
         data = modules["protocol.device"].SpeakerState(volume=5, source="Bluetooth", eq="Music", prompt_tone=True)
         entry = _entry(_coordinator(modules, data, model="M90"), unique_id=None)  # hand-made entry
-        sensor = modules["sensor"].EdifierStatusSensor(entry, "firmware", "Firmware")
+        sensor = modules["sensor"].EdifierStatusSensor(entry, "firmware")
         self.assertEqual(sensor._attr_unique_id, "entry-1_firmware")
         info = sensor.device_info
         self.assertEqual(info["identifiers"], {("edifier_ble", "entry-1")})
@@ -96,15 +96,15 @@ class WritableEntityTests(unittest.IsolatedAsyncioTestCase):
         modules = _modules(self)
         coordinator = _coordinator(modules)
         entry = _entry(coordinator)
-        select = modules["select"].EdifierSelect(entry, "source", "Source", ["Bluetooth", "USB"])
+        select = modules["select"].EdifierSelect(entry, "source", ["Bluetooth", "USB"])
         await select.async_select_option("USB")
         coordinator.async_change.assert_awaited_with("source", "USB")
-        switch = modules["switch"].EdifierSwitch(entry, "power_save", "Power save")
+        switch = modules["switch"].EdifierSwitch(entry, "power_save")
         await switch.async_turn_on()
         coordinator.async_change.assert_awaited_with("power_save", True)
         await switch.async_turn_off()
         coordinator.async_change.assert_awaited_with("power_save", False)
-        await modules["text"].EdifierText(entry, "device_name", "Speaker name").async_set_value("Studio")
+        await modules["text"].EdifierText(entry, "device_name").async_set_value("Studio")
         coordinator.async_change.assert_awaited_with("device_name", "Studio")
 
 

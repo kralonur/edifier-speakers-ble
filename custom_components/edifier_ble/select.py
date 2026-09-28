@@ -16,33 +16,36 @@ PARALLEL_UPDATES = 1
 async def async_setup_entry(hass: HomeAssistant, entry: EdifierConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     model = entry.runtime_data.device.model_name
     fields = {
-        "source": ("Source", SOURCES[model]),
-        "eq": ("EQ", PRESETS[model]),
+        "source": SOURCES[model],
+        "eq": PRESETS[model],
     }
     if model == "M60":
         fields.update({
-            "light_timeout": ("Smart light timeout", TIMERS),
-            "light_sensitivity": ("Smart light sensitivity", SENSITIVITY),
-            "codec_preference": ("LDAC preference", CODEC_PREFS),
+            "light_timeout": TIMERS,
+            "light_sensitivity": SENSITIVITY,
+            "codec_preference": CODEC_PREFS,
         })
     else:
-        fields["sub_out"] = ("Sub Out", SUB_OUT)
-        fields["codec_preference"] = ("HD codec preference (experimental)", CODEC_PREFS)
-    async_add_entities(EdifierSelect(entry, field, label, list(options)) for field, (label, options) in fields.items())
+        fields["sub_out"] = SUB_OUT
+        fields["codec_preference"] = CODEC_PREFS
+    async_add_entities(EdifierSelect(entry, field, list(options)) for field, options in fields.items())
 
 
 class EdifierSelect(EdifierEntity, SelectEntity):
     """Read current selection from the shared speaker snapshot."""
 
-    def __init__(self, entry: EdifierConfigEntry, field: str, name: str, options: list[str]) -> None:
-        super().__init__(entry, field)
+    def __init__(self, entry: EdifierConfigEntry, field: str, options: list[str]) -> None:
+        # The codec select carries a different name per model, so it needs its own
+        # translated name while the unique-id suffix stays the same for both.
+        model = entry.runtime_data.device.model
+        translation_key = None
+        if field == "codec_preference":
+            translation_key = "codec_preference_ldac" if model == "M60" else "codec_preference_hd"
+        super().__init__(entry, field, translation_key=translation_key)
         self._field = field
-        self._attr_name = name
         self._attr_options = options
         if field == "codec_preference":
             self._attr_entity_category = EntityCategory.CONFIG
-        elif field == "source":
-            self._attr_icon = "mdi:audio-input-rca"
 
     @property
     def current_option(self) -> str | None:

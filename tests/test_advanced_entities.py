@@ -1,9 +1,19 @@
 """HA entity-shape tests; run on a Home Assistant installation."""
 
 import importlib
+import json
+from pathlib import Path
 from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
+
+COMPONENT = Path(__file__).resolve().parents[1] / "custom_components" / "edifier_ble"
+NAMES = json.loads((COMPONENT / "strings.json").read_text())["entity"]
+
+
+def rendered_name(platform: str, entity) -> str:
+    """The name Home Assistant renders: the entity's translation key, resolved."""
+    return NAMES[platform][entity.translation_key]["name"]
 
 
 class AdvancedEntityTests(unittest.IsolatedAsyncioTestCase):
@@ -51,15 +61,19 @@ class AdvancedEntityTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(entities["select"]), 5 if model == "M60" else 4)
             self.assertEqual(len(entities["sensor"]), 4)
             self.assertEqual(len(entities["switch"]), 1 if model == "M60" else 4)
-            self.assertEqual(entities["number"][0].name, "Volume")
+            self.assertEqual(entities["number"][0].translation_key, "volume")
+            self.assertEqual(rendered_name("number", entities["number"][0]), "Volume")
             self.assertEqual(entities["number"][0].native_value, 5.0)
-            self.assertEqual(entities["select"][0].name, "Source")
+            self.assertEqual(entities["select"][0].translation_key, "source")
+            self.assertEqual(rendered_name("select", entities["select"][0]), "Source")
             self.assertEqual(entities["select"][0].current_option, "Bluetooth")
-            self.assertEqual(entities["sensor"][1].name, "Classic Bluetooth address")
+            self.assertEqual(entities["sensor"][1].translation_key, "classic_address")
+            self.assertEqual(rendered_name("sensor", entities["sensor"][1]), "Classic Bluetooth address")
             self.assertEqual(entities["sensor"][1].native_value, "AA:BB:CC:22:33:44")
             self.assertEqual(entities["text"][0].native_value, f"EDIFIER {model}")
             self.assertEqual(entities["text"][1].native_value, "Custom")
-            self.assertEqual([entity.name for entity in entities["binary_sensor"]], ["Online", "Bluetooth control link"])
+            self.assertEqual([rendered_name("binary_sensor", entity) for entity in entities["binary_sensor"]],
+                             ["Online", "Bluetooth control link"])
             online, link = entities["binary_sensor"]
             self.assertEqual(online.unique_id, "test-speaker_online")
             self.assertTrue(online.is_on)
@@ -73,7 +87,7 @@ class AdvancedEntityTests(unittest.IsolatedAsyncioTestCase):
             # The churn fix: settings keep their values instead of all going unavailable.
             for platform in ("number", "select", "switch", "text"):
                 for entity in entities[platform]:
-                    self.assertTrue(entity.available, f"{type(entity).__name__} ({entity.name}) must not flap on a failed poll")
+                    self.assertTrue(entity.available, f"{type(entity).__name__} ({entity.translation_key}) must not flap on a failed poll")
             coordinator.data = None
             self.assertFalse(entities["select"][0].available, "unavailable only before the first successful read")
             coordinator.data = data
@@ -82,7 +96,13 @@ class AdvancedEntityTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(entities["number"][1].native_value, 0.0)
             if model == "M90":
                 self.assertEqual(entities["number"][-1].native_value, 0.0)
-                self.assertEqual(entities["number"][-1].name, "Custom EQ 16000 Hz (app gain)")
+                # One shared translation key covers every band and both models; the
+                # frequency is a placeholder, so the rendered name is unchanged.
+                band = entities["number"][-1]
+                self.assertEqual(band.translation_key, "eq_band")
+                self.assertEqual(dict(band.translation_placeholders), {"frequency": "16000"})
+                self.assertEqual(rendered_name("number", band).format(**band.translation_placeholders),
+                                 "Custom EQ 16000 Hz (app gain)")
                 self.assertTrue(entities["switch"][-1].is_on)
                 await entities["switch"][-1].async_turn_off()
                 coordinator.async_change.assert_awaited_with("shutdown_timer", False)
@@ -117,8 +137,74 @@ class AdvancedEntityTests(unittest.IsolatedAsyncioTestCase):
                 # Reading state must not raise, and must not claim to be available.
                 if platform not in ("binary_sensor",):
                     self.assertFalse(entity.available, f"{type(entity).__name__} must be unavailable with no data")
-                entity.name, entity.unique_id
+                entity.translation_key, entity.unique_id
                 getattr(entity, "native_value", None), getattr(entity, "is_on", None), getattr(entity, "current_option", None)
+
+    async def test_every_entity_is_named_and_iconed_through_translations(self):
+        """Gold rules: entity names come from translations, icons from icons.json."""
+        strings = json.loads((COMPONENT / "strings.json").read_text())["entity"]
+        english = json.loads((COMPONENT / "translations" / "en.json").read_text())["entity"]
+        icons = json.loads((COMPONENT / "icons.json").read_text())["entity"]
+        self.assertEqual(strings, english, "translations/en.json is the file Home Assistant reads")
+        used: set[tuple[str, str]] = set()
+        for platform, keys in icons.items():
+            for key in keys:
+                with self.subTest(platform=platform, key=key):
+                    self.assertIn(key, strings[platform], "an icon without a translated name")
+        try:
+            modules = {
+                platform: importlib.import_module(f"custom_components.edifier_ble.{platform}")
+                for platform in ("binary_sensor", "button", "number", "select", "sensor", "switch", "text")
+            }
+        except ModuleNotFoundError as exc:
+            if exc.name == "homeassistant":
+                self.skipTest("Home Assistant is not installed")
+            raise
+        for model in ("M60", "M90"):
+            coordinator = SimpleNamespace(
+                device=SimpleNamespace(model=model, model_name=model, firmware=None),
+                data=None, last_update_success=False, async_change=AsyncMock(),
+            )
+            entry = SimpleNamespace(runtime_data=coordinator, unique_id="test-speaker", entry_id="test-entry")
+            for platform, module in modules.items():
+                created: list = []
+                if platform == "number":
+                    registry = SimpleNamespace(
+                        async_get_entity_id=Mock(return_value=None), async_get=Mock(return_value=None), async_remove=Mock()
+                    )
+                    with patch.object(module.er, "async_get", return_value=registry):
+                        await module.async_setup_entry(None, entry, created.extend)
+                else:
+                    await module.async_setup_entry(None, entry, created.extend)
+                self.assertTrue(created, f"{platform} created no entities for {model}")
+                for entity in created:
+                    used.add((platform, entity.translation_key))
+                    with self.subTest(platform=platform, key=entity.translation_key, model=model):
+                        self.assertIn(entity.translation_key, strings[platform],
+                                      f"{type(entity).__name__} has no translated name")
+                        self.assertIsNone(entity.icon, f"{type(entity).__name__} hardcodes an icon instead of using icons.json")
+        declared = {(platform, key) for platform, keys in strings.items() for key in keys}
+        self.assertEqual(declared - used, set(), "translated names that no entity uses")
+        self.assertEqual(used - declared, set(), "entities using an undefined translated name")
+
+    async def test_the_noisy_link_indicator_starts_disabled(self):
+        """Gold rule entity-disabled-by-default: the churny debug entity is opt-in."""
+        try:
+            module = importlib.import_module("custom_components.edifier_ble.binary_sensor")
+        except ModuleNotFoundError as exc:
+            if exc.name == "homeassistant":
+                self.skipTest("Home Assistant is not installed")
+            raise
+        coordinator = SimpleNamespace(
+            device=SimpleNamespace(model="M90", model_name="M90", firmware=None, is_link_held=False),
+            data=None, last_update_success=False, async_change=AsyncMock(),
+        )
+        entry = SimpleNamespace(runtime_data=coordinator, unique_id="test-speaker", entry_id="test-entry")
+        created: list = []
+        await module.async_setup_entry(None, entry, created.extend)
+        by_key = {entity.translation_key: entity for entity in created}
+        self.assertFalse(by_key["link_connected"].entity_registry_enabled_default, "the link indicator must be opt-in")
+        self.assertTrue(by_key["online"].entity_registry_enabled_default, "Online stays visible: it is the reachability signal")
 
 
 if __name__ == "__main__":

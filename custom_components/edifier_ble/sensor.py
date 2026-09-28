@@ -11,17 +11,13 @@ from .entity import EdifierEntity
 # The coordinator centralises updates, so reads never run in parallel.
 PARALLEL_UPDATES = 0
 
+FIELDS = ("firmware", "classic_address", "audio_status", "a2dp_status")
+
 _AUDIO_STATUS = {0: "Standard/unknown", 4: "Wireless Hi-Res UI status", 5: "Wired Hi-Res UI status", 9: "192 kHz UI status"}
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: EdifierConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    sensors = [
-        EdifierStatusSensor(entry, "firmware", "Firmware"),
-        EdifierStatusSensor(entry, "classic_address", "Classic Bluetooth address"),
-        EdifierStatusSensor(entry, "audio_status", "Audio status"),
-        EdifierStatusSensor(entry, "a2dp_status", "Bluetooth transport status"),
-    ]
-    async_add_entities(sensors)
+    async_add_entities(EdifierStatusSensor(entry, field) for field in FIELDS)
 
 
 class EdifierStatusSensor(EdifierEntity, SensorEntity):
@@ -29,12 +25,9 @@ class EdifierStatusSensor(EdifierEntity, SensorEntity):
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, entry: EdifierConfigEntry, field: str, name: str) -> None:
+    def __init__(self, entry: EdifierConfigEntry, field: str) -> None:
         super().__init__(entry, field)
         self._field = field
-        self._attr_name = name
-        if self._field == "classic_address":
-            self._attr_icon = "mdi:bluetooth"
 
     @property
     def available(self) -> bool:

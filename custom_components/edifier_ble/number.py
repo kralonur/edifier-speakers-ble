@@ -33,14 +33,14 @@ class EdifierEqBand(EdifierEntity, NumberEntity):
 
     _attr_native_unit_of_measurement = "dB"
     _attr_native_step = 0.5
-    _attr_icon = "mdi:equalizer"
 
     def __init__(self, entry: EdifierConfigEntry, index: int) -> None:
-        super().__init__(entry, f"eq_band_{index}")
-        self._index = index
-        model = self.coordinator.device.model_name
+        model = entry.runtime_data.device.model_name
         frequency = EQ_FREQUENCIES[model][index]
-        self._attr_name = f"Custom EQ {frequency} Hz (app gain)"
+        # One translated name for every band and model: the frequency is a placeholder.
+        super().__init__(entry, f"eq_band_{index}", translation_key="eq_band")
+        self._index = index
+        self._attr_translation_placeholders = {"frequency": str(frequency)}
         self._attr_native_min_value = -3.0
         self._attr_native_max_value = 3.0
 
@@ -62,12 +62,10 @@ class EdifierVolumeNumber(EdifierEntity, NumberEntity):
     """Direct discrete volume slider (0–50 for M90, 0–16 for M60)."""
 
     _attr_native_step = 1.0
-    _attr_icon = "mdi:volume-high"
 
     def __init__(self, entry: EdifierConfigEntry) -> None:
         super().__init__(entry, "volume")
         model = self.coordinator.device.model
-        self._attr_name = "Volume"
         self._attr_native_min_value = 0.0
         self._attr_native_max_value = 50.0 if model == "M90" else 16.0
 

@@ -13,10 +13,7 @@ PARALLEL_UPDATES = 1
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: EdifierConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    async_add_entities([
-        EdifierText(entry, "device_name", "Speaker firmware name"),
-        EdifierText(entry, "eq_profile_name", "Custom EQ profile name"),
-    ])
+    async_add_entities([EdifierText(entry, "device_name"), EdifierText(entry, "eq_profile_name")])
 
 
 class EdifierText(EdifierEntity, TextEntity):
@@ -26,10 +23,9 @@ class EdifierText(EdifierEntity, TextEntity):
     _attr_native_max = 35
     _attr_entity_category = EntityCategory.CONFIG
 
-    def __init__(self, entry: EdifierConfigEntry, field: str, name: str) -> None:
+    def __init__(self, entry: EdifierConfigEntry, field: str) -> None:
         super().__init__(entry, field)
         self._field = field
-        self._attr_name = name
 
     @property
     def available(self) -> bool:

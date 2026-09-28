@@ -103,7 +103,7 @@ rules:
     comment: Bluetooth pairing is out of scope; there are no credentials to reauthenticate.
   test-coverage:
     status: done
-    comment: Statement coverage 100% and branch coverage 99% across the integration modules, measured with coverage inside the Home Assistant container (100 tests, no hardware).
+    comment: Statement coverage 100% and branch coverage 99% across the integration modules, measured with coverage inside the Home Assistant container (105 tests, no hardware).
 
   # --- Gold -------------------------------------------------------------------
   devices:
@@ -138,17 +138,34 @@ rules:
   entity-device-class:
     status: done
   entity-disabled-by-default:
-    status: todo
-    comment: Nothing is disabled by default. The deliberately noisy entities (Online, Bluetooth control link) are the ones the integration exists to expose, and the rest change only when the user or the speaker changes a setting; disabling any of them would hide them until a user enables them.
+    status: done
+    comment: >-
+      The BLE control-link indicator is disabled by default (entity_registry_enabled_default =
+      False). It flips with every command and every held link, so it is a debugging aid rather
+      than something to watch; the Online sensor already answers "is the speaker reachable".
+      Everything else stays visible: the remaining entities are the controls and readings the
+      integration exists to expose, and they change only when the user or the speaker changes
+      something. The flag applies to new registrations, so an entity a user already enabled is
+      left alone.
   entity-translations:
-    status: todo
-    comment: Entity names are plain strings, so they are not translatable. Adding translation keys would rename all 61 existing entities, which changes entity IDs.
+    status: done
+    comment: >-
+      Every entity is named through entity.<platform>.<translation key>.name in strings.json and
+      translations/en.json (29 names; Home Assistant falls back to English for other languages),
+      with the entity class no longer setting _attr_name. Keys match the existing unique-id
+      suffixes, so entity IDs and unique IDs are unchanged; the one name that differs per model
+      (the codec preference select) uses its own translation key while keeping a shared unique id,
+      and the EQ bands share one key with the frequency as a placeholder. A test creates the
+      entities for both models and asserts every translation key is defined.
   exception-translations:
     status: done
     comment: Every user-facing error is raised with a translation key and placeholders (no_connectable_adapter, link_command_failed, disruptive_command_failed, playback_command_failed, change_failed, change_not_applied), defined in strings.json and translations/en.json. A test asserts each key is defined, used and fed with the placeholders its message uses.
   icon-translations:
-    status: todo
-    comment: Depends on entity translations; icons.json is keyed by translation key.
+    status: done
+    comment: >-
+      icons.json holds the twelve entity icons (classic address, volume, EQ bands, source and the
+      eight buttons) keyed by translation key, and no entity sets _attr_icon any more. A test
+      asserts each icon has a translated name and that every entity reports no hardcoded icon.
   reconfiguration-flow:
     status: exempt
     comment: The rule exempts integrations without settings in their configuration flow, which is this one; the Bluetooth address is the device identity and there is nothing else to configure. No core BLE integration implements one either (switchbot, led_ble, gardena_bluetooth, airthings_ble, yalexs_ble, thermopro, xiaomi_ble).

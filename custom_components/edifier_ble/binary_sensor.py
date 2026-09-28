@@ -28,7 +28,6 @@ class EdifierOnlineSensor(EdifierEntity, BinarySensorEntity):
 
     def __init__(self, entry: EdifierConfigEntry) -> None:
         super().__init__(entry, "online")
-        self._attr_name = "Online"
 
     @property
     def available(self) -> bool:
@@ -48,10 +47,11 @@ class EdifierLinkSensor(EdifierEntity, BinarySensorEntity):
     """
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    # Debugging aid that flips with every command, so it starts out of the way.
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, entry: EdifierConfigEntry) -> None:
         super().__init__(entry, "link_connected")
-        self._attr_name = "Bluetooth control link"
 
     @property
     def available(self) -> bool:
