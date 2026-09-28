@@ -1,6 +1,7 @@
 """Protocol tests that run without HA or physical Bluetooth hardware."""
 
 import asyncio
+import gc
 import importlib
 import sys
 import types
@@ -210,6 +211,33 @@ class DeviceTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(0.2)
         self.assertEqual(signals, [True, False])
         self.assertFalse(device.is_connected)
+
+    async def test_link_drop_during_a_write_leaves_no_unretrieved_exception(self):
+        """A write failing on its own must not make the loop log a stray exception.
+
+        The disconnect sets the pending future's exception, but the failing write means
+        nobody awaits that future any more, so the exception has to be retrieved here.
+        """
+        device, client = await self.connect("M90", AnswerAll(lambda data: (0xBB, data[1], data[2], b"\x00")))
+        contexts = []
+        loop = asyncio.get_running_loop()
+        loop.set_exception_handler(lambda _loop, context: contexts.append(context))
+        original_write = client.write_gatt_char
+
+        async def write_then_vanish(uuid, data, response=False):
+            device._disconnected(client)  # the speaker goes away mid-write
+            raise frames.ProtocolError("Speaker disconnected")
+
+        client.write_gatt_char = write_then_vanish
+        try:
+            with self.assertRaises(frames.ProtocolError):
+                await device._query(0x66)
+        finally:
+            client.write_gatt_char = original_write
+            loop.set_exception_handler(None)
+        for _ in range(3):
+            gc.collect()
+        self.assertEqual([c for c in contexts if "never retrieved" in c.get("message", "")], [])
 
     async def test_advertised_device_is_used_instead_of_re_resolving(self):
         """A briefly-advertising speaker must be connected to with the object HA just saw."""

@@ -244,6 +244,11 @@ class EdifierDevice:
             future = self._pending[3]
             if not future.done():
                 future.set_exception(ProtocolError("Speaker disconnected"))
+                # The request itself can fail first (a write error while the link goes
+                # down), leaving this future awaited by nobody. Retrieve the exception
+                # now: the waiter still raises it, and the event loop stops reporting
+                # "Future exception was never retrieved" when it is collected.
+                future.exception()
 
     def _notification(self, _sender: object, data: bytearray) -> None:
         try:
