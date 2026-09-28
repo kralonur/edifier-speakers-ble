@@ -2,19 +2,25 @@
 
 import asyncio
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 from .protocol.device import EdifierDevice, SpeakerState
 from .protocol.frames import CommandNotApplied
 
 _LOGGER = logging.getLogger(__name__)
+
+# A speaker that has been silent for this long is worth a repair card: it is off,
+# out of range, or advertising a different address after a re-pair.
+UNREACHABLE_REPAIR_AFTER = timedelta(hours=24)
 
 
 class EdifierCoordinator(DataUpdateCoordinator[SpeakerState]):
@@ -23,6 +29,9 @@ class EdifierCoordinator(DataUpdateCoordinator[SpeakerState]):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, device: EdifierDevice) -> None:
         super().__init__(hass, _LOGGER, config_entry=entry, name="Edifier BLE", update_interval=timedelta(minutes=2))
         self.device = device
+        self._entry_title = entry.title
+        self._unreachable_since: datetime | None = None
+        self._repair_issue_id = f"unreachable_{entry.entry_id}"
         self._event_task: asyncio.Task[None] | None = None
         device.event_callback = self._handle_device_event
         device.link_callback = self.async_update_listeners
@@ -59,9 +68,41 @@ class EdifierCoordinator(DataUpdateCoordinator[SpeakerState]):
 
     async def _async_update_data(self) -> SpeakerState:
         try:
-            return await self.device.read_state()
+            state = await self.device.read_state()
         except Exception as exc:
+            self._async_note_unreachable()
             raise UpdateFailed(f"Unable to read Edifier speaker: {exc}") from exc
+        self._async_clear_unreachable()
+        return state
+
+    @callback
+    def _async_note_unreachable(self) -> None:
+        """Raise a repair card once the speaker has been silent for a day.
+
+        Driven by polls on purpose: someone who turned polling off asked Home
+        Assistant not to watch the speaker.
+        """
+        now = dt_util.utcnow()
+        if self._unreachable_since is None:
+            self._unreachable_since = now
+        if now - self._unreachable_since < UNREACHABLE_REPAIR_AFTER:
+            return
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            self._repair_issue_id,
+            is_fixable=False,
+            issue_domain=DOMAIN,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="speaker_unreachable",
+            translation_placeholders={"name": self._entry_title},
+        )
+
+    @callback
+    def _async_clear_unreachable(self) -> None:
+        """The speaker answered: forget the outage and withdraw the repair card."""
+        self._unreachable_since = None
+        ir.async_delete_issue(self.hass, DOMAIN, self._repair_issue_id)
 
     async def async_link_command(self, action: str) -> None:
         """Force the BLE control link open (pinned, with a fresh read) or release it now."""

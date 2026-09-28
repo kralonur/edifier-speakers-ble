@@ -1,9 +1,10 @@
 """Coordinator tests for speaker-initiated changes; require Home Assistant."""
 
 import importlib
+from datetime import UTC, datetime
 from types import SimpleNamespace
 import unittest
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 
 def _coordinator(test):
@@ -157,6 +158,44 @@ class CoordinatorCommandTests(unittest.IsolatedAsyncioTestCase):
         await coordinator.async_change("volume", 11)
         coordinator.async_request_refresh.assert_awaited_once()
         coordinator.async_set_updated_data.assert_not_called()
+
+    async def test_a_full_day_of_silence_raises_and_withdraws_a_repair_issue(self):
+        module, device, coordinator = self.prepare()
+        device.read_state.side_effect = OSError("asleep")
+        with (
+            patch.object(module.ir, "async_create_issue") as create,
+            patch.object(module.ir, "async_delete_issue") as delete,
+            patch.object(module.dt_util, "utcnow") as clock,
+        ):
+            clock.return_value = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
+            with self.assertRaises(module.UpdateFailed):
+                await coordinator._async_update_data()
+            create.assert_not_called()  # one failed poll is not an outage
+
+            clock.return_value = datetime(2026, 9, 29, 11, 0, tzinfo=UTC)
+            with self.assertRaises(module.UpdateFailed):
+                await coordinator._async_update_data()
+            create.assert_not_called()  # still inside the first day
+
+            clock.return_value = datetime(2026, 9, 29, 13, 0, tzinfo=UTC)
+            with self.assertRaises(module.UpdateFailed):
+                await coordinator._async_update_data()
+            create.assert_called_once()
+            self.assertEqual(create.call_args.kwargs["translation_key"], "speaker_unreachable")
+            self.assertFalse(create.call_args.kwargs["is_fixable"])
+
+            device.read_state.side_effect = None
+            device.read_state.return_value = coordinator.data
+            await coordinator._async_update_data()
+            delete.assert_called_once()  # answering again withdraws the card
+            self.assertIsNone(coordinator._unreachable_since)
+
+    async def test_a_healthy_poll_never_raises_an_issue(self):
+        module, _device, coordinator = self.prepare()
+        with patch.object(module.ir, "async_create_issue") as create, \
+                patch.object(module.ir, "async_delete_issue"):
+            await coordinator._async_update_data()
+        create.assert_not_called()
 
 
 if __name__ == "__main__":

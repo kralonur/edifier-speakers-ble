@@ -149,8 +149,12 @@ rules:
     status: exempt
     comment: The rule exempts integrations without settings in their configuration flow, which is this one; the Bluetooth address is the device identity and there is nothing else to configure. No core BLE integration implements one either (switchbot, led_ble, gardena_bluetooth, airthings_ble, yalexs_ble, thermopro, xiaomi_ble).
   repair-issues:
-    status: todo
-    comment: Failures are logged and surfaced through the Online and Bluetooth control link sensors instead of repair issues.
+    status: done
+    comment: >-
+      A speaker that has been unreachable for 24 hours raises a repair issue (translation_key
+      speaker_unreachable) that says what to do - check power and range, then press Force
+      connect, or add the speaker again if it was re-paired - and it withdraws itself on the
+      next successful read. Deliberately poll-driven, so it stays quiet when polling is off.
   stale-devices:
     status: exempt
     comment: A speaker's device entry is removed with its config entry.

@@ -44,5 +44,11 @@
     "change_not_applied": {
       "message": "The speaker did not report the requested change: {error}"
     }
+  },
+  "issues": {
+    "speaker_unreachable": {
+      "title": "Edifier {name} has not been reachable for a day",
+      "description": "Home Assistant has not been able to reach {name} for 24 hours.\n\nCheck that the speaker is powered on and within range of a connectable Bluetooth adapter, then press **Force connect** on the speaker's device page. If the speaker was re-paired, reset or moved since it was added, it may be advertising a different Bluetooth address and needs to be added again.\n\nThis issue withdraws itself as soon as the speaker answers."
+    }
   }
 }
