@@ -3,7 +3,7 @@
 from homeassistant.components.select import SelectEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.entity import EntityCategory
+from homeassistant.const import EntityCategory
 
 from . import EdifierConfigEntry
 from .entity import EdifierEntity
@@ -14,7 +14,7 @@ PARALLEL_UPDATES = 1
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: EdifierConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    model = entry.runtime_data.device.model
+    model = entry.runtime_data.device.model_name
     fields = {
         "source": ("Source", SOURCES[model]),
         "eq": ("EQ", PRESETS[model]),
@@ -46,7 +46,8 @@ class EdifierSelect(EdifierEntity, SelectEntity):
 
     @property
     def current_option(self) -> str | None:
-        return self.state_field(self._field)
+        value = self.state_field(self._field)
+        return value if isinstance(value, str) else None
 
     @property
     def available(self) -> bool:

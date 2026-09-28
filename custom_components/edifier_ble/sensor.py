@@ -2,7 +2,7 @@
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import EntityCategory
+from homeassistant.const import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import EdifierConfigEntry
@@ -43,7 +43,10 @@ class EdifierStatusSensor(EdifierEntity, SensorEntity):
     @property
     def native_value(self) -> str | None:
         if self._field == "firmware":
-            return self.state_field("firmware") or self.coordinator.device.firmware
+            value = self.state_field("firmware")
+            if isinstance(value, str) and value:
+                return value
+            return self.coordinator.device.firmware
         value = self.state_field(self._field)
         if self._field == "audio_status" and value is not None:
             return _AUDIO_STATUS.get(value, f"Unknown status (0x{value:02X})")
@@ -53,4 +56,4 @@ class EdifierStatusSensor(EdifierEntity, SensorEntity):
             if value == 13 and self.coordinator.device.model == "M60":
                 return "Transport opened (may persist after playback stops)"
             return f"Unknown transport status (0x{value:02X})"
-        return value
+        return value if isinstance(value, str) else None

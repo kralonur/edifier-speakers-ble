@@ -2,7 +2,7 @@
 
 from homeassistant.components.text import TextEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import EntityCategory
+from homeassistant.const import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import EdifierConfigEntry
@@ -37,7 +37,8 @@ class EdifierText(EdifierEntity, TextEntity):
 
     @property
     def native_value(self) -> str | None:
-        return self.state_field(self._field)
+        value = self.state_field(self._field)
+        return value if isinstance(value, str) else None
 
     async def async_set_value(self, value: str) -> None:
         await self.coordinator.async_change(self._field, value)

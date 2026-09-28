@@ -1,5 +1,7 @@
 """Verified prompt tone and M90 switches."""
 
+from typing import Any
+
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -39,8 +41,8 @@ class EdifierSwitch(EdifierEntity, SwitchEntity):
     def available(self) -> bool:
         return super().available and self.state_field(self._field) is not None
 
-    async def async_turn_on(self, **kwargs) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         await self.coordinator.async_change(self._field, True)
 
-    async def async_turn_off(self, **kwargs) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.async_change(self._field, False)

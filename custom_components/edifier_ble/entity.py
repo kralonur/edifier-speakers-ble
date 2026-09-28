@@ -1,5 +1,7 @@
 """Common HA device metadata and action handling."""
 
+from typing import Any
+
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -15,8 +17,12 @@ class EdifierEntity(CoordinatorEntity[EdifierCoordinator]):
 
     def __init__(self, entry: EdifierConfigEntry, key: str) -> None:
         super().__init__(entry.runtime_data)
-        self._entry_unique_id = entry.unique_id
-        self._attr_unique_id = f"{entry.unique_id}_{key}"
+        unique_id = entry.unique_id
+        if unique_id is None:
+            # The config flow always sets one; a hand-made entry still gets an identity.
+            unique_id = entry.entry_id
+        self._entry_unique_id = unique_id
+        self._attr_unique_id = f"{unique_id}_{key}"
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -38,7 +44,7 @@ class EdifierEntity(CoordinatorEntity[EdifierCoordinator]):
         """
         return self.coordinator.data is not None
 
-    def state_field(self, name: str, default=None):
+    def state_field(self, name: str, default: Any = None) -> Any:
         """Read one field from coordinator state, tolerating 'no data yet'."""
         data = self.coordinator.data
         return getattr(data, name, default) if data is not None else default

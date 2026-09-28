@@ -1,6 +1,7 @@
 """Bluetooth discovery and UI configuration for Edifier speakers."""
 
 import logging
+from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -46,9 +47,10 @@ class EdifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured()
         return self.async_show_form(step_id="bluetooth_confirm")
 
-    async def async_step_bluetooth_confirm(self, user_input: dict | None = None) -> ConfigFlowResult:
+    async def async_step_bluetooth_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is None:
             return self.async_show_form(step_id="bluetooth_confirm")
+        assert self._address is not None  # set by async_step_bluetooth before this step
         device = make_device(self.hass, self._address)
         try:
             self._model = await device.identify()
@@ -65,7 +67,7 @@ class EdifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data={CONF_ADDRESS: self._address, CONF_MODEL: self._model},
         )
 
-    async def async_step_user(self, user_input: dict | None = None) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Offer only Edifier-named advertisements; the model is still confirmed over GATT."""
         candidates = {
             info.address: info

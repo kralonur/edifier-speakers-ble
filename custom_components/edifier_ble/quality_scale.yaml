@@ -154,5 +154,5 @@ rules:
     status: exempt
     comment: The integration does not talk HTTP.
   strict-typing:
-    status: todo
-    comment: Annotated throughout, but not yet verified with a strict mypy run.
+    status: done
+    comment: mypy --strict passes with 0 errors across the integration (mypy.ini; Home Assistant's own types via py.typed, follow_imports=silent so only this component is reported on). The mock-heavy tests are not part of the check.

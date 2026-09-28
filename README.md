@@ -65,7 +65,13 @@ For a support report, use **Download diagnostics** (Settings → Devices & servi
 
 **Removal.** Delete **Edifier BLE** in Settings → Devices & services, remove the `custom_components/edifier_ble` directory, then restart. Nothing on the speaker changes.
 
-Protocol tests run without Home Assistant: `python -m unittest discover -s tests -v`. BLE addresses are used as device identifiers, which assumes a stable discoverable address; protocol tests use mocked BLE.
+Protocol tests run without Home Assistant: `python -m unittest discover -s tests -v`. The integration is also checked with `mypy --strict` against Home Assistant's own type information, using `mypy.ini`; run it inside the Home Assistant container, where both the integration and Home Assistant are importable:
+
+```text
+PYTHONPATH=$PWD:/usr/src/homeassistant python3 -m mypy
+```
+
+BLE addresses are used as device identifiers, which assumes a stable discoverable address; protocol tests use mocked BLE.
 
 ## Scope and safety
 

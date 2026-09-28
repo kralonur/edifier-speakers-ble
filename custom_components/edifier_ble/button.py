@@ -12,7 +12,7 @@ PARALLEL_UPDATES = 1
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: EdifierConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    buttons = [
+    buttons: list[ButtonEntity] = [
         EdifierPlaybackButton(entry, "play"),
         EdifierPlaybackButton(entry, "pause"),
         EdifierPlaybackButton(entry, "next"),

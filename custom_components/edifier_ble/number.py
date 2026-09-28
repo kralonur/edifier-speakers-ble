@@ -15,7 +15,7 @@ PARALLEL_UPDATES = 1
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: EdifierConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    model = entry.runtime_data.device.model
+    model = entry.runtime_data.device.model_name
     if model == "M90":
         # Replace the eight read-only sensors created by older releases.
         registry = er.async_get(hass)
@@ -38,7 +38,7 @@ class EdifierEqBand(EdifierEntity, NumberEntity):
     def __init__(self, entry: EdifierConfigEntry, index: int) -> None:
         super().__init__(entry, f"eq_band_{index}")
         self._index = index
-        model = self.coordinator.device.model
+        model = self.coordinator.device.model_name
         frequency = EQ_FREQUENCIES[model][index]
         self._attr_name = f"Custom EQ {frequency} Hz (app gain)"
         self._attr_native_min_value = -3.0

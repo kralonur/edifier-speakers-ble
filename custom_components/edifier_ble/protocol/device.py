@@ -1,11 +1,19 @@
 """One serialized BLE connection and model-specific controls."""
 
+from __future__ import annotations
+
 import asyncio
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 import logging
 import time
 from dataclasses import dataclass
-from typing import Awaitable, Callable
+from typing import TYPE_CHECKING, Any, TypeVar
+
+if TYPE_CHECKING:
+    # Typing only: the protocol layer is tested without bleak installed.
+    from bleak import BleakClient
+    from bleak.backends.device import BLEDevice
 
 from .frames import CommandNotApplied, Frame, ProtocolError, UnsupportedDevice, build_frame, parse_frame
 
@@ -75,10 +83,14 @@ class EdifierDevice:
     disconnected callback; the BLEDevice supplier is called again on reconnect.
     """
 
-    def __init__(self, ble_device: Callable[[], object | None], connector: Callable[..., Awaitable[object]]) -> None:
+    def __init__(
+        self,
+        ble_device: Callable[[], BLEDevice | None],
+        connector: Callable[[BLEDevice, Callable[[object], None]], Awaitable[BleakClient]],
+    ) -> None:
         self._ble_device = ble_device
         self._connector = connector
-        self._client = None
+        self._client: BleakClient | None = None
         self._pending: tuple[int, int, set[int], asyncio.Future[Frame]] | None = None
         self._lock = asyncio.Lock()
         self._idle_task: asyncio.Task[None] | None = None
@@ -95,15 +107,15 @@ class EdifierDevice:
         self.classic_address: str | None = None
         # Handed over by Home Assistant from an advertisement; a device that only
         # advertises briefly must be connected to with this exact object.
-        self._advertisement_device: object | None = None
+        self._advertisement_device: BLEDevice | None = None
         self._closed = False
 
-    def set_ble_device(self, device: object | None) -> None:
+    def set_ble_device(self, device: BLEDevice | None) -> None:
         """Remember the BLEDevice object Home Assistant just delivered."""
         self._advertisement_device = device
 
     @asynccontextmanager
-    async def _session(self, *, hold: bool = False):
+    async def _session(self, *, hold: bool = False) -> AsyncIterator[None]:
         """Run one operation; `hold` marks a user command that keeps the link open."""
         async with self._lock:
             opened_here = self._client is None
@@ -164,6 +176,13 @@ class EdifierDevice:
             return self.model
 
     @property
+    def model_name(self) -> str:
+        """The GATT-confirmed model; every frame layout and option map depends on it."""
+        if self.model is None:
+            raise ProtocolError("Speaker model is not known yet")
+        return self.model
+
+    @property
     def is_connected(self) -> bool:
         """True while a live GATT link is held, so commands will not pay a connect."""
         return self._client is not None and bool(self._client.is_connected)
@@ -192,11 +211,11 @@ class EdifierDevice:
             await client.disconnect()
         self._notify_link()
 
-    async def _connect(self) -> None:
+    async def _connect(self) -> BleakClient:
         if self._closed:
             raise ProtocolError("Speaker client is closed")
         if self._client is not None and self._client.is_connected:
-            return
+            return self._client
         device = self._advertisement_device or self._ble_device()
         if device is None:
             raise ProtocolError("Speaker is not reachable by a connectable Bluetooth adapter")
@@ -214,6 +233,7 @@ class EdifierDevice:
             raise
         self._client = client
         self._notify_link()
+        return client
 
     def _disconnected(self, _client: object) -> None:
         if _client is not self._client:
@@ -242,12 +262,12 @@ class EdifierDevice:
             self.event_callback()
 
     async def _request(self, opcode: int, payload: bytes = b"", *, app: int = 0xEC, ack: bool = False) -> bytes:
-        await self._connect()
+        client = await self._connect()
         loop = asyncio.get_running_loop()
         future: asyncio.Future[Frame] = loop.create_future()
         self._pending = (app, opcode, {0xBB, 0xCC} if ack else {0xBB}, future)
         try:
-            await self._client.write_gatt_char(WRITE_UUID, build_frame(opcode, payload, app))
+            await client.write_gatt_char(WRITE_UUID, build_frame(opcode, payload, app))
             frame = await asyncio.wait_for(future, RESPONSE_TIMEOUT)
             if ack and frame.payload and frame.payload[0] == 0 and frame.kind == 0xCC:
                 raise ProtocolError("Speaker rejected command")
@@ -273,13 +293,13 @@ class EdifierDevice:
         group = 0x0F if self.model == "M60" else 0x1D
         if len(data) != 2 or data[0] != group:
             raise ProtocolError("Unexpected source response")
-        return _decode(SOURCES[self.model], data[1])
+        return _decode(SOURCES[self.model_name], data[1])
 
     async def _eq(self) -> str:
         data = await self._query(0xD5)
         if len(data) != 1:
             raise ProtocolError("Unexpected EQ response")
-        return _decode(PRESETS[self.model], data[0])
+        return _decode(PRESETS[self.model_name], data[0])
 
     async def _tone(self) -> bool:
         data = await self._query(0x86)
@@ -339,7 +359,7 @@ class EdifierDevice:
 
     async def _eq_records(self) -> tuple[bytes, ...]:
         data = await self._query(0x43)
-        frequencies = EQ_FREQUENCIES[self.model]
+        frequencies = EQ_FREQUENCIES[self.model_name]
         size = 6 if self.model == "M60" else 4
         fmt = 3 if self.model == "M60" else 0x10
         minimum = 2 + len(frequencies) * size + (4 if self.model == "M90" else 0)
@@ -363,7 +383,9 @@ class EdifierDevice:
             raise ProtocolError("Unexpected shutdown timer response")
         return int.from_bytes(data, "big")
 
-    async def _optional(self, reader, label: str):
+    _T = TypeVar("_T")
+
+    async def _optional(self, reader: Callable[[], Awaitable[_T]], label: str) -> _T | None:
         try:
             return await reader()
         except Exception as exc:
@@ -415,7 +437,8 @@ class EdifierDevice:
         if action not in PLAYBACK_ACTIONS:
             raise ValueError("Unsupported playback action")
         async with self._session(hold=True):
-            await self._client.write_gatt_char(
+            client = await self._connect()
+            await client.write_gatt_char(
                 WRITE_UUID, build_frame(0xC2, bytes((PLAYBACK_ACTIONS[action],)))
             )
 
@@ -435,7 +458,7 @@ class EdifierDevice:
 
     async def _eq_profile_name(self) -> str:
         data = await self._query(0x43)
-        count = len(EQ_FREQUENCIES[self.model])
+        count = len(EQ_FREQUENCIES[self.model_name])
         size = 6 if self.model == "M60" else 4
         end = 2 + count * size
         if len(data) < end or data[:2] != bytes((3 if self.model == "M60" else 0x10, count)):
@@ -459,14 +482,16 @@ class EdifierDevice:
         if self.model != "M90":
             raise ValueError("M60 shutdown command is not documented")
         async with self._session(hold=True):
-            await self._client.write_gatt_char(WRITE_UUID, build_frame(0xCE))
+            client = await self._connect()
+            await client.write_gatt_char(WRITE_UUID, build_frame(0xCE))
 
     async def disconnect_audio(self) -> None:
         """Explicit M60 disconnect; may drop both BLE and Classic links."""
         if self.model != "M60":
             raise ValueError("M90 disconnect command is not documented")
         async with self._session(hold=True):
-            await self._client.write_gatt_char(WRITE_UUID, build_frame(0xCD))
+            client = await self._connect()
+            await client.write_gatt_char(WRITE_UUID, build_frame(0xCD))
 
     async def _classic_address(self) -> str:
         data = await self._query(0xC8)
@@ -490,7 +515,7 @@ class EdifierDevice:
         async with self._session():
             return await self._firmware()
 
-    async def change(self, field: str, value: object) -> dict[str, object]:
+    async def change(self, field: str, value: object) -> dict[str, Any]:
         """Write and read back just the affected setting; return authoritative fields."""
         async with self._session(hold=True):
             if field == "volume":
@@ -498,9 +523,9 @@ class EdifierDevice:
                 if type(value) is not int or not 0 <= value <= maximum:
                     raise ValueError("Volume out of range")
                 await self._set(0x67, bytes((value,)))
-                actual = await self._volume()
+                actual: object = await self._volume()
             elif field == "source":
-                options = SOURCES[self.model]
+                options = SOURCES[self.model_name]
                 if value not in options:
                     raise ValueError("Unsupported source")
                 group = 0x0F if self.model == "M60" else 0x1D
@@ -512,7 +537,7 @@ class EdifierDevice:
                     await asyncio.sleep(delay)
                     actual = await self._source()
             elif field == "eq":
-                options = PRESETS[self.model]
+                options = PRESETS[self.model_name]
                 if value not in options:
                     raise ValueError("Unsupported EQ preset")
                 await self._set(0xC4, bytes((options[value],)))
@@ -568,10 +593,11 @@ class EdifierDevice:
                 await self._set(0xCA, value.encode("utf-8"))
                 data = await self._query(0xC9)
                 try:
-                    actual = data.decode("utf-8")
+                    name = data.decode("utf-8")
                 except UnicodeDecodeError as exc:
                     raise ProtocolError("Invalid speaker name encoding") from exc
-                self.device_name = actual
+                self.device_name = name
+                actual = name
             elif field == "eq_profile_name":
                 if type(value) is not str or not value or len(value.encode("utf-8")) > 35:
                     raise ValueError("EQ profile name must be 1–35 UTF-8 bytes")
@@ -580,16 +606,22 @@ class EdifierDevice:
                     await self._set(0x47, payload)
                 except Exception as exc:
                     _LOGGER.debug("EQ name write lost ACK; checking read-back: %s", exc)
-                actual = await self._eq_profile_name()
-                self.eq_profile_name = actual
+                name = await self._eq_profile_name()
+                self.eq_profile_name = name
+                actual = name
             elif field.startswith("eq_band_"):
                 try:
                     index = int(field.removeprefix("eq_band_"))
                 except ValueError as exc:
                     raise ValueError("Invalid EQ band") from exc
-                if not 0 <= index < len(EQ_FREQUENCIES[self.model]):
+                if not 0 <= index < len(EQ_FREQUENCIES[self.model_name]):
                     raise ValueError("Unsupported EQ band")
-                if type(value) not in (int, float) or not -3.0 <= value <= 3.0 or value * 2 != int(value * 2):
+                if (
+                    not isinstance(value, (int, float))
+                    or isinstance(value, bool)  # bools are ints; the speaker does not take them
+                    or not -3.0 <= value <= 3.0
+                    or value * 2 != int(value * 2)
+                ):
                     raise ValueError("Unsupported EQ gain")
                 if await self._eq() != ("Customized" if self.model == "M60" else "Custom"):
                     raise ProtocolError("Select Custom EQ preset before editing bands")
@@ -630,9 +662,9 @@ class EdifierDevice:
                     raise CommandNotApplied(f"Codec: requested {value}, speaker reports {actual}")
                 updates = {"codec_preference": actual}
                 if self.model == "M60":
-                    sensitivity = await self._optional(self._light, "smart light after LDAC")
-                    if sensitivity is not None:
-                        updates["light_timeout"], updates["light_sensitivity"] = sensitivity
+                    light = await self._optional(self._light, "smart light after LDAC")
+                    if light is not None:
+                        updates["light_timeout"], updates["light_sensitivity"] = light
                 return updates
             else:
                 raise ValueError("Unsupported speaker control")

@@ -28,7 +28,7 @@ class AdvancedEntityTests(unittest.IsolatedAsyncioTestCase):
                 firmware="2.5.1", classic_address="AA:BB:CC:22:33:44",
             )
             coordinator = SimpleNamespace(
-                device=SimpleNamespace(model=model, firmware="2.5.1", is_connected=False, is_link_held=False),
+                device=SimpleNamespace(model=model, model_name=model, firmware="2.5.1", is_connected=False, is_link_held=False),
                 data=data, last_update_success=True, async_change=AsyncMock(),
             )
             entry = SimpleNamespace(runtime_data=coordinator, unique_id="test-speaker", entry_id="test-entry")
@@ -101,7 +101,7 @@ class AdvancedEntityTests(unittest.IsolatedAsyncioTestCase):
                 self.skipTest("Home Assistant is not installed")
             raise
         coordinator = SimpleNamespace(
-            device=SimpleNamespace(model="M90", firmware=None, is_connected=False, is_link_held=False),
+            device=SimpleNamespace(model="M90", model_name="M90", firmware=None, is_connected=False, is_link_held=False),
             data=None, last_update_success=False, async_change=AsyncMock(),
         )
         entry = SimpleNamespace(runtime_data=coordinator, unique_id="test-speaker", entry_id="test-entry")
