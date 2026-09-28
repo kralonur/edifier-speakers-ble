@@ -91,7 +91,7 @@ rules:
     comment: Bluetooth pairing is out of scope; there are no credentials to reauthenticate.
   test-coverage:
     status: done
-    comment: Statement coverage 100% and branch coverage 99% across the integration modules, measured with coverage inside the Home Assistant container (96 tests, no hardware).
+    comment: Statement coverage 100% and branch coverage 99% across the integration modules, measured with coverage inside the Home Assistant container (100 tests, no hardware).
 
   # --- Gold -------------------------------------------------------------------
   devices:
@@ -132,7 +132,8 @@ rules:
     status: todo
     comment: Entity names are plain strings, so they are not translatable. Adding translation keys would rename all 61 existing entities, which changes entity IDs.
   exception-translations:
-    status: todo
+    status: done
+    comment: Every user-facing error is raised with a translation key and placeholders (no_connectable_adapter, link_command_failed, disruptive_command_failed, playback_command_failed, change_failed, change_not_applied), defined in strings.json and translations/en.json. A test asserts each key is defined, used and fed with the placeholders its message uses.
   icon-translations:
     status: todo
     comment: Depends on entity translations; icons.json is keyed by translation key.
