@@ -61,7 +61,15 @@ rules:
     comment: The config flow reads the speaker over GATT and only then creates the entry.
   test-before-setup:
     status: todo
-    comment: Deliberate deviation. These speakers sleep, and the requirement is that entities always exist, so setup does not raise ConfigEntryNotReady for an unreachable speaker; it records the failure and the Online sensor reports it.
+    comment: >-
+      Deliberate deviation, explained in the README. Setup does check the environment (no
+      connectable adapter or proxy raises a translated ConfigEntryNotReady) and the config flow
+      confirms the model over GATT before an entry exists, but setup does not require the
+      speaker to answer. These speakers are unreachable whenever they are in standby - an M60
+      with a closed Classic link will not even accept a BLE connection - so raising
+      ConfigEntryNotReady would leave every entity missing on each restart instead of reporting
+      Online off. Core integrations that do verify (led_ble, gardena_bluetooth, airthings_ble,
+      switchbot) can afford it because their devices stay reachable.
   unique-config-entry:
     status: done
 
