@@ -73,6 +73,13 @@ PYTHONPATH=$PWD:/usr/src/homeassistant python3 -m mypy
 
 BLE addresses are used as device identifiers, which assumes a stable discoverable address; protocol tests use mocked BLE.
 
+Test coverage is measured the same way, in the same container:
+
+```text
+PYTHONPATH=$PWD python3 -m coverage run --branch --source=custom_components/edifier_ble -m unittest discover -s tests
+python3 -m coverage report
+```
+
 ## Scope and safety
 
 The current references cover BLE controls, not firmware updates or the Bluetooth audio transport. Track metadata may need to come from the audio source rather than the speaker. Firmware revisions may behave differently.

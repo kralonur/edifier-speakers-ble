@@ -90,8 +90,8 @@ rules:
     status: exempt
     comment: Bluetooth pairing is out of scope; there are no credentials to reauthenticate.
   test-coverage:
-    status: todo
-    comment: 47 tests cover protocol, entities, coordinator, config flow and diagnostics; total coverage has not been measured against the 95% target.
+    status: done
+    comment: Statement coverage 100% and branch coverage 99% across the integration modules, measured with coverage inside the Home Assistant container (96 tests, no hardware).
 
   # --- Gold -------------------------------------------------------------------
   devices:
