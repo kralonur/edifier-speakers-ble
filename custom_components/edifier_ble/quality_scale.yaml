@@ -11,7 +11,7 @@ rules:
   # --- Bronze -----------------------------------------------------------------
   action-setup:
     status: exempt
-    comment: The integration provides no service actions.
+    comment: The rule is about where service actions are registered; this integration registers none.
   appropriate-polling:
     status: done
     comment: One state read every two minutes; commands and speaker notifications refresh immediately.
@@ -26,25 +26,27 @@ rules:
     comment: The single field carries a data_description, and the address plus the GATT-confirmed model live in ConfigEntry.data with no options used.
   config-flow-test-coverage:
     status: done
-    comment: tests/test_config_flow.py covers discovery, confirmation, the manual add list and the manifest matchers.
+    comment: config_flow.py is at 100% statement coverage; tests cover the confirmation form both ways, a device without the Edifier profile, a connection error followed by a successful retry, an address that is not advertising, and the uniqueness guard.
   dependency-transparency:
     status: done
     comment: No requirements of its own. bleak and bleak-retry-connector come pinned from Home Assistant's bluetooth integration (4.7.0), which bluetooth_adapters depends on.
   docs-actions:
     status: exempt
-    comment: The integration provides no service actions.
+    comment: The rule documents service actions an integration provides; this one provides none.
   docs-conditions:
     status: exempt
-    comment: The integration provides no conditions.
+    comment: The rule documents conditions an integration provides; this one provides none.
   docs-high-level-description:
     status: done
+    comment: The README opens the integration section with what Edifier BLE is, which speakers it covers and a link to the manufacturer.
   docs-installation-instructions:
     status: done
+    comment: The README states the prerequisites (working Bluetooth, connectable adapter or proxy, speaker powered on) before the copy-restart-add steps.
   docs-removal-instructions:
     status: done
   docs-triggers:
     status: exempt
-    comment: The integration provides no triggers.
+    comment: The rule documents triggers an integration provides; this one provides none.
   entity-event-setup:
     status: done
     comment: The speaker's unsolicited notifications are subscribed once per config entry by the coordinator, not per entity.

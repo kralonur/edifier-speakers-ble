@@ -74,6 +74,7 @@ class ConfigFlowTests(unittest.IsolatedAsyncioTestCase):
             result = await flow.async_step_bluetooth(SimpleNamespace(address="TEST-ADDRESS", name="EDIFIER BLE"))
         self.assertEqual(result["step_id"], "bluetooth_confirm")
         flow.async_set_unique_id.assert_awaited_once_with("TEST-ADDRESS")
+        flow._abort_if_unique_id_configured.assert_called_once()  # one entry per speaker
 
         offline = SimpleNamespace(identify=AsyncMock(side_effect=OSError("offline")), close=AsyncMock())
         with patch.object(module, "make_device", return_value=offline):
@@ -132,6 +133,54 @@ class ConfigFlowTests(unittest.IsolatedAsyncioTestCase):
         others = [_service_info("Xiaomi Tag", address="AA:BB:CC:33:44:55"), _service_info(None, address="AA:BB:CC:33:44:66")]
         with patch.object(module.bluetooth, "async_discovered_service_info", return_value=others):
             result = await flow.async_step_user(None)
+        self.assertEqual(result["reason"], "no_devices_found")
+
+    async def test_confirm_step_renders_the_form_before_the_user_answers(self):
+        module = _config_flow_module(self)
+        flow = module.EdifierConfigFlow()
+        flow.async_show_form = Mock(return_value={"type": "form", "step_id": "bluetooth_confirm"})
+        result = await flow.async_step_bluetooth_confirm(None)
+        self.assertEqual(result["step_id"], "bluetooth_confirm")
+        flow.async_show_form.assert_called_once_with(step_id="bluetooth_confirm")
+
+    async def test_confirm_step_aborts_for_a_device_without_the_edifier_profile(self):
+        module = _config_flow_module(self)
+        flow = module.EdifierConfigFlow()
+        flow._address = "AA:BB:CC:11:22:33"
+        wrong = SimpleNamespace(identify=AsyncMock(side_effect=module.UnsupportedDevice("Unsupported Edifier GATT profile")),
+                                close=AsyncMock())
+        with patch.object(module, "make_device", return_value=wrong):
+            result = await flow.async_step_bluetooth_confirm({})
+        self.assertEqual(result["reason"], "not_supported")
+        wrong.close.assert_awaited_once()
+
+    async def test_flow_recovers_after_a_connection_error(self):
+        """The rule requires proof that a failed attempt does not end the flow."""
+        module = _config_flow_module(self)
+        flow = module.EdifierConfigFlow()
+        flow._address = "AA:BB:CC:11:22:33"
+        flow.async_show_form = Mock(return_value={"type": "form", "step_id": "bluetooth_confirm"})
+        flow.async_create_entry = Mock(return_value={"type": "create_entry"})
+        broken = SimpleNamespace(identify=AsyncMock(side_effect=OSError("asleep")), close=AsyncMock())
+        with patch.object(module, "make_device", return_value=broken):
+            first = await flow.async_step_bluetooth_confirm({})
+        self.assertEqual(first["step_id"], "bluetooth_confirm")
+        flow.async_show_form.assert_called_with(step_id="bluetooth_confirm", errors={"base": "cannot_connect"})
+        working = SimpleNamespace(identify=AsyncMock(return_value="M60"), close=AsyncMock())
+        with patch.object(module, "make_device", return_value=working):
+            second = await flow.async_step_bluetooth_confirm({})
+        self.assertEqual(second["type"], "create_entry")
+        flow.async_create_entry.assert_called_once_with(
+            title="Edifier M60", data={"address": "AA:BB:CC:11:22:33", "model": "M60"}
+        )
+
+    async def test_user_step_rejects_an_address_that_is_not_advertising(self):
+        module = _config_flow_module(self)
+        flow = module.EdifierConfigFlow()
+        flow.hass = SimpleNamespace()
+        speaker = _service_info("EDIFIER M60")
+        with patch.object(module.bluetooth, "async_discovered_service_info", return_value=[speaker]):
+            result = await flow.async_step_user({"address": "AA:BB:CC:99:99:99"})
         self.assertEqual(result["reason"], "no_devices_found")
 
 
