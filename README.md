@@ -31,19 +31,8 @@ Unless a section says otherwise, documented controls were exercised on a physica
 **Observed on tested hardware (not guarantees for every host or firmware)**
 
 - **M60 observations on a desktop Linux PC (firmware 2.4.1):** with no music, four BLE connections succeeded but exposed **0 GATT services**; with phone audio streaming, the PC read the full control state. Idle connects sometimes took about 30 seconds, and advertisements varied by input state. These observations do not establish behavior on every host or firmware. See the [M60 reference](docs/edifier-m60-ble.md).
-- The **M90 is mostly fine while it is on**. It only becomes unreachable when it goes to standby through power save: it stops advertising, Home Assistant cannot reach it, and I have to switch it on again by hand — the 2.4 GHz remote, or the button on the back of the unit. I do not know an over-BLE way to wake it, and I am not certain what exactly triggers that standby.
-- Both: Home Assistant retries at the next poll and there is nothing to reset. A sleeping speaker shows up as `Speaker is not reachable right now` or `Failed to connect after N attempt(s)` in the log, with **Online** off.
-
-**Known limits and unverified behaviour**
-
-- **Verified on an M90 running firmware 2.5.1:** all nine custom EQ bands accept writes across the full −3.0 to +3.0 dB range and read back exactly, including both extremes, and the values survive leaving and re-entering the Custom preset. The speaker only keeps band edits while its **Custom** preset is selected, so writing a band in another preset is refused with that message instead of being stored somewhere the Edifier app will not show it.
-- **Also verified on that M90:** all reads (volume, codec preference, source, EQ preset, firmware, audio status, speaker name, custom EQ profile name, multipoint, power save, shutdown timer, every band gain), a mode-changing HD codec write (96 kHz → 44.1/48 kHz) read back correctly after reconnecting, and volume writes read back exactly. One caveat measured on hardware: changing the codec preference can drop the BLE link while the speaker renegotiates audio — an attempt failed with a GATT `Unlikely Error (0x0E)` and Home Assistant reported the command as failed even though the speaker may have applied it. Trust the value after the next poll. The M90 volume format still needs a read-back check on other firmware versions.
-- M90 **Power off** was reported in an earlier session and has **no read-back or ACK**. M60 **Disconnect Bluetooth audio** may drop the whole BLE/Classic link.
-- The one-minute command window is not timed against a live speaker.
-- The M90's remote is 2.4 GHz RF, so its presses never reach Home Assistant. State is re-read whenever the speaker sends an unsolicited notification, but whether the M90 announces remote changes over BLE has **not been observed**, so remote changes may only appear at the next poll.
 - Playback buttons forward AVRCP without an ACK or state query: M60's effect was observed at a host player, M90's player-side effect was not documented, and play/pause state plus track metadata stay unknown.
 - Audio `0x68` values are UI codes from the app; `09` was never observed on either model.
-
 The integration does not require Classic Bluetooth pairing. M60 protocol reads have been verified on a PC,
 not yet through Home Assistant; its writes (custom EQ, smart light, codec preference) have **not** been
 exercised on hardware. Protocol details for each model live in [docs/](docs/).
