@@ -1,6 +1,6 @@
 """Use Home Assistant's adapter selection and connection retry helper."""
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 
 from bleak import BleakClient
 from bleak.backends.device import BLEDevice

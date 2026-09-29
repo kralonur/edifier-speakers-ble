@@ -52,7 +52,7 @@ actions:
       message: "Not reachable for ten minutes."
 ```
 
-For a support report, use **Download diagnostics** (Settings → Devices & services → **Edifier BLE** → three-dot menu): configured address and model, the identity read from the speaker, link and polling state, the last update result with Home Assistant's reachability explanation, and the last state snapshot. No credentials, because the integration has none.
+For a support report, use **Download diagnostics** (Settings → Devices & services → **Edifier BLE** → three-dot menu): model, link and polling state, the last update result with Home Assistant's reachability explanation, and the last state snapshot. Bluetooth addresses and user-set speaker names are redacted, including in error text; review the file before sharing it. The integration has no credentials.
 
 **Removal.** Delete **Edifier BLE** in Settings → Devices & services, remove the `custom_components/edifier_ble` directory, then restart. Nothing on the speaker changes.
 

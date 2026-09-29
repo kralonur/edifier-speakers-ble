@@ -53,12 +53,17 @@ class DeviceEventTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(created, [], "an advertisement must not schedule a state read")
 
     async def test_unavailable_callback_marks_offline_only_when_online(self):
-        _module, _device, _created, _task, coordinator = _coordinator(self)
+        _module, device, _created, _task, coordinator = _coordinator(self)
         coordinator.async_set_update_error = Mock()
+        device.is_connected = False
         coordinator.last_update_success = False
         coordinator._async_unavailable(None)
         coordinator.async_set_update_error.assert_not_called()
         coordinator.last_update_success = True
+        device.is_connected = True
+        coordinator._async_unavailable(None)  # connected devices stop advertising
+        coordinator.async_set_update_error.assert_not_called()
+        device.is_connected = False
         coordinator._async_unavailable(None)
         coordinator.async_set_update_error.assert_called_once()
 

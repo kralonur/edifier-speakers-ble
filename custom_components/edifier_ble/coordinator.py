@@ -57,7 +57,9 @@ class EdifierCoordinator(DataUpdateCoordinator[SpeakerState]):
     @callback
     def _async_unavailable(self, _service_info: object) -> None:
         """Home Assistant stopped seeing the speaker, so report it offline."""
-        if self.last_update_success:
+        # A connected speaker normally stops advertising; the GATT link is
+        # stronger evidence of reachability than the advertisement timer.
+        if self.last_update_success and not self.device.is_connected:
             self.async_set_update_error(UpdateFailed("Speaker is no longer advertising"))
 
     async def _async_refresh_from_event(self) -> None:

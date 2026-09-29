@@ -35,7 +35,7 @@ class EdifierPlaybackButton(EdifierEntity, ButtonEntity):
 class EdifierLinkButton(EdifierEntity, ButtonEntity):
     """Force-connect or force-disconnect the HA control link.
 
-    Commands already hold the link for five minutes, so these exist to hold it
+    Commands already hold the link for one minute, so these exist to hold it
     indefinitely or to hand the speaker back to the Edifier app immediately.
     """
 

@@ -1,8 +1,5 @@
 """Edifier M60/M90 Bluetooth integration."""
 
-from dataclasses import replace
-import logging
-
 from homeassistant.components import bluetooth
 from homeassistant.components.bluetooth.match import BluetoothCallbackMatcher
 from homeassistant.config_entries import ConfigEntry
@@ -14,9 +11,6 @@ from homeassistant.helpers import entity_registry as er
 from .bluetooth_device import async_clear_stale_connections, make_device
 from .const import CONF_MODEL, DOMAIN, PLATFORMS
 from .coordinator import EdifierCoordinator
-
-_LOGGER = logging.getLogger(__name__)
-
 
 type EdifierConfigEntry = ConfigEntry[EdifierCoordinator]
 
