@@ -13,6 +13,8 @@ Unless a section says otherwise, documented controls were exercised on a physica
 
 ## Home Assistant custom integration (early release)
 
+[![Add to HACS](https://img.shields.io/badge/Add%20to-HACS-41BDF5?style=for-the-badge&logo=homeassistant&logoColor=white)](https://my.home-assistant.io/redirect/hacs_repository/?owner=kralonur&repository=edifier-speakers-ble&category=integration)
+
 **Edifier BLE** brings [Edifier](https://www.edifier.com/) speakers — the **M60** and **M90** — into Home Assistant over Bluetooth Low Energy. It talks to the speaker directly, so no account, cloud service or vendor app is involved.
 
 **Prerequisites:** the built-in Bluetooth integration must be working, with a connectable adapter or an ESPHome Bluetooth proxy in range of the speaker, and the speaker itself powered on. Then either add this repository to HACS as a custom repository (category **Integration**) and install **Edifier BLE** from there, or copy `custom_components/edifier_ble` into your configuration's `custom_components/` directory. Either way, restart Home Assistant and add **Edifier BLE** from Settings → Devices & services. Home Assistant suggests a speaker from a connectable advertisement named `EDIFIER *` (any case) or carrying the ConneX service UUID — the M60 often advertises with no name — and confirms the model over GATT after you confirm. It does not pair the speakers.
