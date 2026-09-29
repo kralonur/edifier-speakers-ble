@@ -23,7 +23,7 @@ jobs:
             image: "stable"
     continue-on-error: ${{ matrix.homeassistant == 'latest' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
       # The checks run inside the Home Assistant container for the same reason they
       # do locally: it already has Home Assistant, Python 3.14 and every runtime
