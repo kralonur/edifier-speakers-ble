@@ -16,8 +16,8 @@ jobs:
       matrix:
         include:
           # The version this integration is developed and verified against.
-          - homeassistant: "2026.9.3"
-            image: "2026.9.3"
+          - homeassistant: "2026.11.3"
+            image: "2026.11.3"
           # The same checks against the current release: an early warning, not a gate.
           - homeassistant: "latest"
             image: "stable"
