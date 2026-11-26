@@ -5,7 +5,9 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 import logging
 
+from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
@@ -21,14 +23,23 @@ _LOGGER = logging.getLogger(__name__)
 # A speaker that has been silent for this long is worth a repair card: it is off,
 # out of range, or advertising a different address after a re-pair.
 UNREACHABLE_REPAIR_AFTER = timedelta(hours=24)
+# Polls only connect while the speaker advertises. Failed connects to an
+# advertising speaker back off by doubling, up to the maximum.
+POLL_INTERVAL = timedelta(minutes=2)
+MAX_POLL_INTERVAL = timedelta(minutes=30)
 
 
 class EdifierCoordinator(DataUpdateCoordinator[SpeakerState]):
     """One periodic state read and one serialized client per speaker."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, device: EdifierDevice) -> None:
-        super().__init__(hass, _LOGGER, config_entry=entry, name="Edifier BLE", update_interval=timedelta(minutes=2))
+        super().__init__(hass, _LOGGER, config_entry=entry, name="Edifier BLE", update_interval=POLL_INTERVAL)
         self.device = device
+        self._address: str = entry.data[CONF_ADDRESS]
+        self._failed_connects = 0
+        # Set when a read was skipped or the speaker went away: the next
+        # advertisement then triggers one read instead of waiting for the timer.
+        self._read_on_advertisement = False
         self._entry_title = entry.title
         self._unreachable_since: datetime | None = None
         self._repair_issue_id = f"unreachable_{entry.entry_id}"
@@ -49,17 +60,29 @@ class EdifierCoordinator(DataUpdateCoordinator[SpeakerState]):
     def _async_bluetooth_callback(self, service_info: object, _change: object) -> None:
         """Cache the freshest BLEDevice object from an advertisement.
 
-        Deliberately never triggers a read: an unreachable speaker that keeps
-        advertising would otherwise cause a connect attempt per advertisement.
+        A speaker that comes back is read once right away. Later advertisements
+        never trigger a read: an unreachable speaker that keeps advertising
+        would otherwise cause a connect attempt per advertisement.
         """
         self.device.set_ble_device(getattr(service_info, "device", None))
+        if not self._read_on_advertisement:
+            return
+        if self.config_entry is not None and self.config_entry.pref_disable_polling:
+            return
+        self._read_on_advertisement = False
+        self._handle_device_event()
 
     @callback
     def _async_unavailable(self, _service_info: object) -> None:
         """Home Assistant stopped seeing the speaker, so report it offline."""
         # A connected speaker normally stops advertising; the GATT link is
         # stronger evidence of reachability than the advertisement timer.
-        if self.last_update_success and not self.device.is_connected:
+        if self.device.is_connected:
+            return
+        # The cached BLEDevice is stale now; connecting with it would only time out.
+        self.device.set_ble_device(None)
+        self._read_on_advertisement = True
+        if self.last_update_success:
             self.async_set_update_error(UpdateFailed("Speaker is no longer advertising"))
 
     async def _async_refresh_from_event(self) -> None:
@@ -69,11 +92,23 @@ class EdifierCoordinator(DataUpdateCoordinator[SpeakerState]):
             _LOGGER.debug("Refresh after a speaker-initiated change failed: %s", exc)
 
     async def _async_update_data(self) -> SpeakerState:
+        # A held link answers even though a connected speaker stops advertising.
+        if not self.device.is_connected and not bluetooth.async_address_present(
+            self.hass, self._address, connectable=True
+        ):
+            # Not advertising means off or out of range: skip the connect entirely.
+            self._read_on_advertisement = True
+            self._async_note_unreachable()
+            raise UpdateFailed("Speaker is not advertising")
         try:
             state = await self.device.read_state()
         except Exception as exc:
+            self._failed_connects += 1
+            self.update_interval = min(POLL_INTERVAL * 2**self._failed_connects, MAX_POLL_INTERVAL)
             self._async_note_unreachable()
             raise UpdateFailed(f"Unable to read Edifier speaker: {exc}") from exc
+        self._failed_connects = 0
+        self.update_interval = POLL_INTERVAL
         self._async_clear_unreachable()
         return state
 

@@ -26,7 +26,9 @@ def _coordinator(test):
     hass = MagicMock()
     hass.async_create_task = async_create_task
     device = MagicMock()
-    return module, device, created, task, module.EdifierCoordinator(hass, MagicMock(), device)
+    entry = MagicMock()
+    entry.pref_disable_polling = False
+    return module, device, created, task, module.EdifierCoordinator(hass, entry, device)
 
 
 class DeviceEventTests(unittest.IsolatedAsyncioTestCase):
@@ -67,6 +69,28 @@ class DeviceEventTests(unittest.IsolatedAsyncioTestCase):
         coordinator._async_unavailable(None)
         coordinator.async_set_update_error.assert_called_once()
 
+    async def test_returning_speaker_is_read_once_on_its_first_advertisement(self):
+        _module, device, created, _task, coordinator = _coordinator(self)
+        coordinator.async_set_update_error = Mock()
+        device.is_connected = False
+        coordinator.last_update_success = True
+        coordinator._async_unavailable(None)
+        device.set_ble_device.assert_called_once_with(None)  # never connect with a stale object
+        service_info = SimpleNamespace(device="fresh-device")
+        coordinator._async_bluetooth_callback(service_info, None)
+        self.assertEqual(len(created), 1)
+        coordinator._async_bluetooth_callback(service_info, None)
+        self.assertEqual(len(created), 1, "only the first advertisement after an absence reads")
+
+    async def test_returning_speaker_is_not_read_with_polling_disabled(self):
+        _module, device, created, _task, coordinator = _coordinator(self)
+        coordinator.config_entry.pref_disable_polling = True
+        device.is_connected = False
+        coordinator.last_update_success = False
+        coordinator._async_unavailable(None)
+        coordinator._async_bluetooth_callback(SimpleNamespace(device="fresh-device"), None)
+        self.assertEqual(created, [])
+
     async def test_event_reread_swallows_failures(self):
         _module, _device, _created, _task, coordinator = _coordinator(self)
         coordinator.async_refresh = AsyncMock(side_effect=RuntimeError("speaker offline"))
@@ -94,6 +118,37 @@ class CoordinatorCommandTests(unittest.IsolatedAsyncioTestCase):
         device.read_state.side_effect = OSError("asleep")
         with self.assertRaises(module.UpdateFailed):
             await coordinator._async_update_data()
+
+    async def test_a_speaker_that_is_not_advertising_is_not_connected_to(self):
+        module, device, coordinator = self.prepare()
+        device.is_connected = False
+        with patch.object(module.bluetooth, "async_address_present", return_value=False), \
+                patch.object(module.ir, "async_create_issue"):
+            with self.assertRaises(module.UpdateFailed):
+                await coordinator._async_update_data()
+        device.read_state.assert_not_awaited()
+        self.assertEqual(coordinator.update_interval, module.POLL_INTERVAL)
+        coordinator._handle_device_event = Mock()
+        coordinator._async_bluetooth_callback(SimpleNamespace(device="fresh-device"), None)
+        coordinator._handle_device_event.assert_called_once()  # read as soon as it is back
+
+    async def test_failed_connects_back_off_and_a_success_resets(self):
+        module, device, coordinator = self.prepare()
+        device.is_connected = False
+        device.read_state.side_effect = OSError("no answer")
+        with patch.object(module.bluetooth, "async_address_present", return_value=True), \
+                patch.object(module.ir, "async_create_issue"), patch.object(module.ir, "async_delete_issue"):
+            intervals = []
+            for _ in range(6):
+                with self.assertRaises(module.UpdateFailed):
+                    await coordinator._async_update_data()
+                intervals.append(coordinator.update_interval)
+            self.assertEqual(intervals[:3], [module.POLL_INTERVAL * 2, module.POLL_INTERVAL * 4, module.POLL_INTERVAL * 8])
+            self.assertEqual(intervals[-1], module.MAX_POLL_INTERVAL)
+            device.read_state.side_effect = None
+            device.read_state.return_value = coordinator.data
+            await coordinator._async_update_data()
+        self.assertEqual(coordinator.update_interval, module.POLL_INTERVAL)
 
     async def test_link_commands_pin_release_and_report_failures(self):
         module, device, coordinator = self.prepare()
