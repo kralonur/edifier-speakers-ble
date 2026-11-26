@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-import voluptuous as vol
+import probatio
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.components import bluetooth
@@ -87,5 +87,5 @@ class EdifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         }
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema({vol.Required(CONF_ADDRESS): vol.In(options)}),
+            data_schema=probatio.Schema({probatio.Required(CONF_ADDRESS): probatio.In(options)}),
         )
